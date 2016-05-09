@@ -1,0 +1,15 @@
+---
+title: New Post
+author: James
+---
+
+
+```haskell
+data Thing = Thing {
+  getThing :: Text
+} deriving (Eq)
+
+main = do
+  doSomething <- do
+  return ()
+```
