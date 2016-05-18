@@ -53,24 +53,37 @@ parsePhoneValue = do
 ```haskell
 parsePhoneValue :: Parser Text
 parsePhoneValue = do
-  noDashNumbers <- takeWhile1 isDigit
-  number <- many getNums
-  return $ T.concat (T.append noDashNumbers number)
+  num <- T.concat <$> many1 getNums
+  return num
 
 getNums :: Parser Text
 getNums = do
-  number <- takeWhile isDigit
+  num <- takeWhile1 isDigit
   mDash <- (Just <$> string "-") <|> pure Nothing
   case mDash of
-    Nothing -> return number
+    Nothing -> return num
     Just dash -> do
-      postDashNumber <- digit
-      return $ T.append number $ T.append dash (T.pack [postDashNumber])          
+      nextIsDigit
+      return $ T.append num dash  
+
+nextIsDigit :: Parser ()
+nextIsDigit = do
+  mNext <- peekChar
+  case mNext of
+    Nothing -> return () -- tried to parse the end of inpu
+    Just next ->  
+      if isDigit next
+        then return ()
+        else fail "did not find digit"       
 ```
 
-`takeWhile1 isDigit` gets at least one digit until the first dash or end of input. `many` runs the parser until it fails and returns the parsed value. The `getNums` function parses a sequence of zero or more numbers, and optionally gets a single dash and one or more numbers at the end of the sequence. `(Just <$> string "-") <|> pure Nothing` parses a dash and wraps it in `Just` or if there is no dash then it returns `Nothing`. If it finds a dash then there must be another number after the dash or the parser will fail because we do not want a dash to be the last character. 
+`parsePhoneValue` runs `many1 getNums` to parse one or more series of numbers that can be optionally followd by a dash in the case that there is another digit after the dash. The `T.concat <$>` part will concat all of the number strings after parsing.
 
-Try testing it on various number sequences that should pass or fail. Finally, we combine the two key-value parsers and return a new type.
+`getNums` collects a a series of one or more digits with `takeWhile1 isDigit`. `takeWhile1` takes a (Char -> Bool) function and consumes input until the function returns `False`. `(Just <$> string "-") <|> pure Nothing` checks if there is a dash and wraps it in `Just` if it succeeds, otherwise, it returns `Nothing`. `Nothing` has to be returned with `pure` or `return` because parsers are monads. `(<|>)` is an infix operator that tries a parser on the left, if it it succeeds then it moves on, if it fails, it tracks the text input to the point before the left hand parser ran and then it performs the action on the right. If there is no dash, then we can return the series of digits. Otherwise, we use `nextIsDigit` to peek at the next character without consuming it. If it is a digit than the parser will succeed and return the number series and dash. If it is not, then the `getNums` parser will fail.
+
+`nextIsDigit` peeks at the next character with `peekChar`. If it encounters the end of input it return `Nothing` and the `nextIsDigit` parser fails, otherwise if the the value of `isDigit next` is `True` then the parser succeeds, otherwise it will fail.
+
+Try testing `parsePhoneValue` on various phone number sequences that should pass or fail. Finally, we combine the two key-value parsers and return a new type.
 
 ```haskell
 parsePersonData :: Parser Person
@@ -85,7 +98,31 @@ data Person = Person {
 }
 ```
 
-References:
+New Attoparsec Functions:
 
+ * `(<|>)` infix operator that will run the parser on the left first, if it fails it does not consume any input and tries to run the parser on the right. May be chained like this `parser1 <|> parser2 <|> parser3 <|> parser4`. The parser will be tried in order from left to right.
+
+ * `endOfLine` succeeds if the char is `\n` or `\r`.
+
+ * `endOfInput` succeeds when at the end of input.
+
+ * `isDigit` (Char -> Bool) returns true for `0-9`.
+
+ * `many1` takes a parser, consume input until the parser fails, must succeed at least once, return consumed input.
+
+ * `peekChar` returns the next char wrapped in `Just`, but does not consume it. If it is then end of input then it returns `Nothing`. This parser will not fail.
+
+ * `peekChar'` returns the next char, but does not consume it. It will fail on the end of input
+
+ * `takeTill` takes a (Char -> Bool) function, consume input until the function returns `True`, return consumed input.
+
+ * `takeWhile` take a (Char -> Bool) function
+
+ * `takeWhile1` takes a (Char -> Bool) function, consume input as long as the function returns `True`, must succeed at least once, returns consumed input.
+
+
+Attoparsec parser always backtrack on failure, the rewind to their original starting point.
+
+References: 
 [Data.Char defines many isTypeOfChar functions](https://hackage.haskell.org/package/base-4.7.0.1/docs/Data-Char.html)
 
