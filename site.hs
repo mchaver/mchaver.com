@@ -28,6 +28,14 @@ main = hakyll $ do
             >>= loadAndApplyTemplate "templates/default.html" postCtx
             >>= relativizeUrls
 
+
+    match "tutorials/haskell/attoparsec/*" $ do
+        route $ setExtension "html"
+        compile $ pandocCompiler
+            >>= loadAndApplyTemplate "templates/post.html"    postCtx
+            >>= loadAndApplyTemplate "templates/default.html" postCtx
+            >>= relativizeUrls
+
     create ["archive.html"] $ do
         route idRoute
         compile $ do
@@ -41,26 +49,38 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/archive.html" archiveCtx
                 >>= loadAndApplyTemplate "templates/default.html" archiveCtx
                 >>= relativizeUrls
-    
+
     create ["tutorials.html"] $ do
         route idRoute
         compile $ do
-            -- tutorialCategories <- recentFirst =<< loadAll "tutorials/*"
-            -- tutorialCategories <- recentFirst =<<  loadAll "tutorials/*"
-            let tutorialCategories = mapM makeItem ["Attoparsec", "Good Stuff"]
-            -- print tutorialCategories
-            -- listField "tutorialCategories" postCtx (return tutorialCategories) `mappend`
-            -- constField "title" "Tutorials"            `mappend`
-            -- defaultContext
-            let tutorialsCtx = listField "tutorialCategories" defaultContext tutorialCategories `mappend` 
-                               constField "title" "Tutorials"                                   `mappend`
-                               defaultContext
+            -- let tutorialCategories = mapM makeItem ["Attoparsec", "Good Stuff"]
+            -- tutorials/haskell/attoparsec/*
+            attos <-  recentFirst =<< loadAll "tutorials/haskell/attoparsec/*"
+
+            let tutorialsCtx =
+                    listField "attos" defaultContext (return attos) `mappend`
+                    constField "title" "Tutorials"           `mappend`
+                    defaultContext
 
             makeItem ""
                 >>= loadAndApplyTemplate "templates/tutorials.html" tutorialsCtx
                 >>= loadAndApplyTemplate "templates/default.html" tutorialsCtx
                 >>= relativizeUrls    
+    {-
+    create ["tutorials.html"] $ do
+        route idRoute
+        compile $ do
+            posts <- recentFirst =<< loadAll "posts/*"
+            let archiveCtx =
+                    listField "posts" postCtx (return posts) `mappend`
+                    constField "title" "Archives"            `mappend`
+                    defaultContext
 
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/archive.html" archiveCtx
+                >>= loadAndApplyTemplate "templates/default.html" archiveCtx
+                >>= relativizeUrls
+    -}
     match "index.html" $ do
         route idRoute
         compile $ do
@@ -85,6 +105,12 @@ postCtx =
     dateField "date" "%B %e, %Y" `mappend`
     defaultContext
 
+{-
+stack clean
+stack build
+stack exec site rebuild
+stack exec site watch
+-}
 
 {-
 -- metaKeywordContext will return a Context containing a String

@@ -1,2 +1,13 @@
-Here you can find all my tutorials:
-$partial("templates/tutorial-list.html")$
+<h1>Tutorials</h1>
+
+<h2>Haskell</h2>
+
+<h3>Attoparsec</h3>
+
+<ul>
+    $for(attos)$
+        <li>
+            <a href="$url$">$title$</a>
+        </li>
+    $endfor$
+</ul>
