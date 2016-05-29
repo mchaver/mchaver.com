@@ -55,7 +55,7 @@ main = hakyll $ do
         compile $ do
             -- let tutorialCategories = mapM makeItem ["Attoparsec", "Good Stuff"]
             -- tutorials/haskell/attoparsec/*
-            attos <-  recentFirst =<< loadAll "tutorials/haskell/attoparsec/*"
+            attos <-  recentFirst =<< loadAll "tutorials/posts/haskell/attoparsec/*"
 
             let tutorialsCtx =
                     listField "attos" defaultContext (return attos) `mappend`
