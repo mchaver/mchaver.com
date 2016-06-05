@@ -29,7 +29,7 @@ main = hakyll $ do
             >>= relativizeUrls
 
 
-    match "tutorials/haskell/attoparsec/*" $ do
+    match "tutorials/posts/haskell/attoparsec/*" $ do
         route $ setExtension "html"
         compile $ pandocCompiler
             >>= loadAndApplyTemplate "templates/post.html"    postCtx

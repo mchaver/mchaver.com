@@ -1,0 +1,102 @@
+---
+title: Files and Directories
+---
+
+
+```
+import Control.Arrow
+import Control.Monad
+
+import System.Directory
+import System.FilePath
+```
+
+```
+getDirectoriesInDirectory :: FilePath -> IO [FilePath]
+getDirectoriesInDirectory dir = do
+  dirs <- listDirectory dir
+  let dirps = ((dir </>) &&& id) <$> dirs
+  r <-  filterM (doesDirectoryExist . fst) dirps
+  return $ snd <$> r
+
+getFilesInDirectory :: FilePath -> IO [FilePath]
+getFilesInDirectory dir = do
+  dirs <- listDirectory dir
+  let dirps = ((dir </>) &&& id) <$> dirs
+  r <-  filterM (doesFileExist . fst) dirps
+  return $ snd <$> r
+  
+canonicalizePath
+```
+
+```
+data FilePathData = FilePathData {
+  _getAbsoluteFilePath :: FilePath
+, _getRelativeFilePath :: FilePath
+, _getFileName         :: FilePath
+} 
+```
+
+```
+show hidden files
+show file of suffix
+show file of prefix
+```
+
+[Code Review: Get list of the executables in the current directory](http://codereview.stackexchange.com/questions/79180/get-list-of-the-executables-in-the-current-directory)
+
+```
+
+
+I wouldn't import System.Directory qualified, it doesn't export anything that could clash with standard names.
+
+import Control.Applicative
+import Control.Monad
+import System.Directory
+
+main :: IO ()
+main = do
+    files <- getDirectoryContents =<< getCurrentDirectory
+    exes <- filterM (liftA executable <$> getPermissions) files
+    print exes
+
+You can toss out the Functor and Applicative stuff and just compose Monads.
+
+import Control.Monad
+import System.Directory
+
+main :: IO ()
+main = do
+    files <- getDirectoryContents =<< getCurrentDirectory
+    exes <- filterM (liftM executable . getPermissions) files
+    print exes
+
+You could also get rid of reverse bind and use the forward version, it's maybe more familiar?
+
+import Control.Monad
+import System.Directory
+
+main :: IO ()
+main = do
+    files <- getCurrentDirectory >>= getDirectoryContents
+    exes <- filterM (liftM executable . getPermissions) files
+    print exes
+
+I'd eliminate the explicit use of bind entirely though, then it becomes easier to turn this into a function that can work on directories other than the current one.
+
+import Control.Monad
+import System.Directory
+
+main :: IO ()
+main = do
+    dir <- getCurrentDirectory
+    printExecutables dir
+
+printExecutables :: FilePath -> IO ()
+printExecutables dir = do
+    files <- getDirectoryContents dir
+    exes <- filterM (liftM executable . getPermissions) files
+    print exes
+
+
+```
