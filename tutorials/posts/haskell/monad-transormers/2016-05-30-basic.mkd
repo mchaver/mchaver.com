@@ -79,3 +79,5 @@ state
 handle errors
 write logs
 perform IO
+
+associate with each transformer a typeclass specifying its operation.

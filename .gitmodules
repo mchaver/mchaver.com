@@ -1,0 +1,9 @@
+[submodule "tutorials/projects/haskell/servant/3-servant-with-ghcjs/test-frontend/_build/ghcjs-ffiqq"]
+	path = tutorials/projects/haskell/servant/3-servant-with-ghcjs/test-frontend/_build/ghcjs-ffiqq
+	url = https://github.com/ghcjs/ghcjs-ffiqq.git
+[submodule "tutorials/projects/haskell/servant/3-servant-with-ghcjs/test-frontend/_build/ghcjs-jsval-combinators"]
+	path = tutorials/projects/haskell/servant/3-servant-with-ghcjs/test-frontend/_build/ghcjs-jsval-combinators
+	url = https://github.com/plow-technologies/ghcjs-jsval-combinators.git
+[submodule "tutorials/projects/haskell/servant/3-servant-with-ghcjs/test-frontend/_build/ghcjs-servant-client"]
+	path = tutorials/projects/haskell/servant/3-servant-with-ghcjs/test-frontend/_build/ghcjs-servant-client
+	url = https://github.com/plow-technologies/ghcjs-servant-client.git
