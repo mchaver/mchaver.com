@@ -23,3 +23,4 @@ web/_cache
 web/_site
 web/site
 web/reference
+/tutorials/projects/haskell/servant/3-servant-with-ghcjs/test-server/test.sqlite
