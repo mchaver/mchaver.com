@@ -36,6 +36,7 @@ executable ghcjs-with-livevdom
                      , stm-notify
                      , containers
                      , ghcjs-vdom
+                     , ghcjs-base
   default-language:    Haskell2010
 
 test-suite test
