@@ -16,13 +16,16 @@ data Expr a where
   B :: Bool -> Expr Bool
 ```
 
+\\[ \\ln x = \\int_{-\\infty}^x \\frac 1 y \\, dy . \\]
+$\Gamma$
+
 GADTs help restrict the type of a constructor and the functions can take advantage of the type marker
 
 all constructors of a data type must return the same type on the left hand side.
 
 ```
 data Foo a = Boo a
- 
+
 ```
 
 have the terms carry around more type information
@@ -43,7 +46,7 @@ stronger type enforced guarantees than regular ADTs. type indexing
 
 scrutinee type
 
-Darcs 
+Darcs
 HaskellDB
 
 
