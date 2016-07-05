@@ -40,34 +40,32 @@ import           System.Random
 getAllUsers :: GenHaxl () [User]
 getAllUsers = do
   userIds <- getAllUserIds
-  mUsers <- for userIds $ \userId -> do
+  mUsers <- for userIds $ \userId ->
     getUsernameById userId
   return $ catMaybes mUsers
 
-getAllUserIds :: GenHaxl () [Key User]
+getAllUserIds :: GenHaxl () [UserId]
 getAllUserIds = dataFetch GetAllIds
 
-getUsernameById :: (Key User) -> GenHaxl () (Maybe User)
+getUsernameById :: UserId -> GenHaxl () (Maybe User)
 getUsernameById userId = dataFetch (GetUserById userId)
 
 insertUsers :: [User] -> GenHaxl () ()
 insertUsers users = dataFetch (InsertUsers users)
 
--- type Haxl = GenHaxl ()
-
 -- Data source implementation.
 
 data SQLiteDBRequest a where
-  GetAllIds   :: SQLiteDBRequest [Key User]
+  GetAllIds   :: SQLiteDBRequest [UserId]
   GetUserById :: Key User -> SQLiteDBRequest (Maybe User)
   InsertUsers :: [User] -> SQLiteDBRequest ()
   deriving (Typeable)
 
 deriving instance Eq (SQLiteDBRequest a)
 instance Hashable (SQLiteDBRequest a) where
-   hashWithSalt s GetAllIds       = hashWithSalt s (0::Int)
-   hashWithSalt s (GetUserById a) = hashWithSalt s (1::Int, a)
-   hashWithSalt s (InsertUsers a) = hashWithSalt s (2::Int, a)
+   hashWithSalt s r@(GetAllIds)     = hashWithSalt s (0::Int, show r)
+   hashWithSalt s r@(GetUserById _) = hashWithSalt s (1::Int, show r)
+   hashWithSalt s r@(InsertUsers _) = hashWithSalt s (2::Int, show r)
 
 deriving instance Show (SQLiteDBRequest a)
 instance Show1 SQLiteDBRequest where show1 = show
@@ -85,6 +83,24 @@ instance DataSourceName SQLiteDBRequest where
 instance DataSource u SQLiteDBRequest where
   fetch = sqliteDBFetch
 
+{- Synchronous version
+sqliteDBFetch :: State SQLiteDBRequest
+              -> Flags
+              -> u
+              -> [BlockedFetch SQLiteDBRequest]
+              -> PerformFetch
+sqliteDBFetch SQLiteDBState{..} _ _ blockedFetches =
+  SyncFetch $ mapM_ (sqliteDBFetchSync sqliteDBStateConnectionPool) blockedFetches
+
+sqliteDBFetchSync :: ConnectionPool -> BlockedFetch SQLiteDBRequest -> IO ()
+sqliteDBFetchSync connectionPool (BlockedFetch req rvar) = do
+  eitherExceptionResponse <- try $ fetchSQLiteDBReq connectionPool req
+  case eitherExceptionResponse of
+    Left exception -> putFailure rvar (exception :: SomeException)
+    Right response -> putSuccess rvar response
+-}
+
+-- Asynchronous version
 sqliteDBFetch :: State SQLiteDBRequest
               -> Flags
               -> u
@@ -119,48 +135,11 @@ fetchSQLiteDBReq pool sqliteDBRequest =
           user <- selectFirst [UserId ==. userId] []
           return $ entityVal <$> user
       InsertUsers users ->
-        flip runSqlPersistMPool pool $ do
+        flip runSqlPersistMPool pool $
           forM_ users $ \user -> do
-            mUser <- selectFirst [UserName ==. (userName user)] []
+            mUser <- selectFirst [UserName ==. userName user] []
             case mUser of
               Nothing -> do
                 _ <- insert user
                 return ()
               Just _  -> return ()
-
-{-
-  fetch _state _flags _userEnv blockedFetches = SyncFetch $ do
-    let pool = cp _state
-
-    {-
-    userGet :: Text -> IO (Maybe User)
-    userGet name = flip runSqlPersistMPool pool $ do
-      mUser <- selectFirst [UserName ==. name] []
-      return $ entityVal <$> mUser
-    -}
-    unless (null allIdVars) $
-      flip runSqlPersistMPool pool $ do
-        users <- selectList ([] :: [Filter User]) []
-        let userKeys = entityKey <$> users
-        liftIO $ mapM_ (\r -> putSuccess r userKeys) allIdVars
-
-    unless (null userVars) $
-      flip runSqlPersistMPool pool $ do
-        mUsers <- for allIdVars $ \idVar -> do
-          eUserId <- takeResult idVar
-          case eUserId of
-            Left _ -> return Nothing
-            Right userId -> do
-              mUser <- selectFirst [UserId ==. userId] []
-              return $ entityVal <$> mUser
-        --users <- selectList ([] :: [Filter User]) []
-        --let userVals = entityVal <$> users
-        liftIO $ mapM_ (\r -> putSuccess r mUsers) userVars
-
-    where
-      allIdVars :: [ResultVar [Key User]]
-      allIdVars = [r | BlockedFetch GetAllIds r <- blockedFetches]
-
-      userVars :: [ResultVar [Maybe User]]
-      userVars = [r | BlockedFetch (GetUserById userId) r <- blockedFetches]
--}
