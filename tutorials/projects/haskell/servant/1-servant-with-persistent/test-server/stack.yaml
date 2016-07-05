@@ -1,0 +1,11 @@
+resolver: lts-6.4
+
+packages:
+- '.'
+- ../test-types
+
+extra-deps: []
+
+flags: {}
+
+extra-package-dbs: []
