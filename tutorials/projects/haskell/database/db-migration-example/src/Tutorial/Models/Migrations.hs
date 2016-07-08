@@ -5,7 +5,6 @@ module Tutorial.Models.Migrations (
     migrateFromV1toV2
   , migrateFromV2toV3
   , migrateFromV3toV4
-
   , migrateFromV1toV4
   ) where
 
