@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds         #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE TypeFamilies      #-}
@@ -7,41 +6,42 @@
 
 module Main where
 
-import           Control.Monad.IO.Class 
+import           Control.Monad.IO.Class
 import           Control.Monad.Logger (runStderrLoggingT)
+
+import           Data.String.Conversions
+import           Data.Text
 
 import           Database.Persist
 import           Database.Persist.Sql
 import           Database.Persist.Sqlite
 
 import           Network.Wai
-import           Network.Wai.Handler.Warp
+import qualified Network.Wai.Handler.Warp as Warp
 
-import           Servant 
-
-
-import           Data.Aeson
-import           Data.Text
+import           Servant
 
 import           Test.Api
-import           Test.Types
+import           Test.Models
 
 runDB :: ConnectionPool -> SqlPersistT IO a -> IO a
 runDB pool query = liftIO $ runSqlPool query pool
 
 
 server :: ConnectionPool -> Server TestAPI
-server pool = 
+server pool =
   userAddH :<|> userGetH
   where
     userAddH newUser = liftIO $ userAdd newUser
     userGetH name    = liftIO $ userGet name
 
-    userAdd :: User -> IO ()
+    userAdd :: User -> IO (Maybe UserId)
     userAdd newUser = flip runSqlPersistMPool pool $ do
-      insert newUser
-      return ()
-    
+      exists <- selectFirst [UserName ==. (userName newUser)] []
+      case exists of
+        Nothing -> Just <$> insert newUser
+        Just _ -> return Nothing
+
     userGet :: Text -> IO (Maybe User)
     userGet name = flip runSqlPersistMPool pool $ do
       mUser <- selectFirst [UserName ==. name] []
@@ -53,15 +53,15 @@ testAPI = Proxy
 app :: ConnectionPool -> Application
 app pool = serve testAPI $ server pool
 
-main :: IO ()
-main = do
-  pool <- runStderrLoggingT $ do
-    createSqlitePool ":memory:" 5
-  
-  -- createSqlitePool "test.sqlite" 5
-  
+mkApp :: FilePath -> IO Application
+mkApp sqliteFile = do
+  pool <- runStderrLoggingT $ createSqlitePool (cs sqliteFile) 5
   runSqlPool (runMigration migrateAll) pool
-  run 8081 $ app pool
+  return $ app pool
 
+runApp :: FilePath -> IO ()
+runApp sqliteFile =
+  Warp.run 3000 =<< mkApp sqliteFile
 
-
+main :: IO ()
+main = runApp "test.sqlite"
