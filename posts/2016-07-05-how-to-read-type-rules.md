@@ -142,6 +142,14 @@ function elimination rule
       {\\Gamma \\vdash M \\; N : B}
 \\]
 
+Substitution
+
+M and N are terms.
+$M[N/x]$ the term in which we substitute N for x in M.
+M is (x+y) \times 3
+N is (y \times 2) then
+$M[N/x]$ is $((y \times 2)) + y$
+
 [Typed Lambda Calculus](http://www.cs.bham.ac.uk/%7Epbl/mgs/lam/mgsbegin.pdf)
 [Lecture Notes on the Lambda Calculus](http://www.mscs.dal.ca/~selinger/papers/lambdanotes.pdf)
 [Turnstile](https://en.wikipedia.org/wiki/Turnstile_(symbol))

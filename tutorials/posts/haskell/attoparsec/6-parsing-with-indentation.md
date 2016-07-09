@@ -1,5 +1,6 @@
 ---
 title: Parsing With Indentation
+date: 2016-05-18
 ---
 
 parseHeader :: Parser Header
@@ -13,25 +14,25 @@ parseField previousIdentSize = do
   -- identSize must be greated than 0, defines indent
   -- if identSize == previousIdentSize
   if indentSize == previousIdentSize -- same level, not child
-  if indentSize >  previousIdentSize -- 
-  then 
+  if indentSize >  previousIdentSize --
+  then
   else
-  
+
 -- zero or more
 parseFields = do
   (first,indentSize) <- parseField -1
   rest <- snd <$> many parseField indentSize
   return $ [first] ++ rest
-  
+
 parseModel :: Parser Model
 parseModel = do
   header <- parseHeader
   fields <- parseFields
   return $ Model header field
-  
+
 
 -- handle branching
--- 
+--
 
 -- command, command, for-loop, command
 
@@ -52,7 +53,7 @@ find 3
   parse 2 spaces = sibling
   parse > 2 = child
   spaces is greater than 2, sibling
-  
+
 
 parse self, parse children, children as next
 

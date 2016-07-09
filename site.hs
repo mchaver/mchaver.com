@@ -1,12 +1,17 @@
---------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
+import           Control.Monad               (liftM)
+
 import           Data.Monoid (mappend)
+import           Data.List                   (sortBy)
+import           Data.Ord                    (comparing)
 import qualified Data.Set as S
 
 import           Hakyll
-
+import           Hakyll.Core.Metadata (MonadMetadata)
 import           Text.Pandoc.Options
 
+import           System.FilePath               (splitDirectories, takeBaseName)
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -36,8 +41,15 @@ main = hakyll $ do
     match "tutorials/posts/haskell/attoparsec/*" $ do
         route $ setExtension "html"
         compile $ pandocMathCompiler
-            >>= loadAndApplyTemplate "templates/post.html"    postCtx
-            >>= loadAndApplyTemplate "templates/default.html" postCtx
+            >>= loadAndApplyTemplate "templates/post.html"    numberedCtx
+            >>= loadAndApplyTemplate "templates/default.html" numberedCtx
+            >>= relativizeUrls
+
+    match "notes/**" $ do
+        route $ setExtension "html"
+        compile $ pandocMathCompiler
+            >>= loadAndApplyTemplate "templates/note.html"    defaultContext
+            >>= loadAndApplyTemplate "templates/default.html" defaultContext
             >>= relativizeUrls
 
     create ["archive.html"] $ do
@@ -57,9 +69,7 @@ main = hakyll $ do
     create ["tutorials.html"] $ do
         route idRoute
         compile $ do
-            -- let tutorialCategories = mapM makeItem ["Attoparsec", "Good Stuff"]
-            -- tutorials/haskell/attoparsec/*
-            attos <-  recentFirst =<< loadAll "tutorials/posts/haskell/attoparsec/*"
+            attos <- orderFirst =<< loadAll "tutorials/posts/haskell/attoparsec/*"
 
             let tutorialsCtx =
                     listField "attos" defaultContext (return attos) `mappend`
@@ -70,21 +80,22 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/tutorials.html" tutorialsCtx
                 >>= loadAndApplyTemplate "templates/default.html" tutorialsCtx
                 >>= relativizeUrls
-    {-
-    create ["tutorials.html"] $ do
-        route idRoute
-        compile $ do
-            posts <- recentFirst =<< loadAll "posts/*"
-            let archiveCtx =
-                    listField "posts" postCtx (return posts) `mappend`
-                    constField "title" "Archives"            `mappend`
-                    defaultContext
 
-            makeItem ""
-                >>= loadAndApplyTemplate "templates/archive.html" archiveCtx
-                >>= loadAndApplyTemplate "templates/default.html" archiveCtx
-                >>= relativizeUrls
-    -}
+    create ["notes.html"] $ do
+      route idRoute
+      compile $ do
+        taplNotes <- loadAll "notes/books/TAPL/*"
+
+        let notesCtx =
+              listField "taplNotes" defaultContext (return taplNotes) `mappend`
+              constField "title" "Notes" `mappend`
+              defaultContext
+
+        makeItem ""
+          >>= loadAndApplyTemplate "templates/notes.html" notesCtx
+          >>= loadAndApplyTemplate "templates/default.html" notesCtx
+          >>= relativizeUrls
+
     match "index.html" $ do
         route idRoute
         compile $ do
@@ -108,6 +119,39 @@ postCtx :: Context String
 postCtx =
     dateField "date" "%B %e, %Y" `mappend`
     defaultContext
+
+numberedCtx :: Context String
+numberedCtx = orderField "order" `mappend` defaultContext
+
+orderField :: String    -- ^ key in which to the order number should appear
+           -> Context a -- ^ Resulting context
+orderField key = field key $ \i -> getOrderField $ itemIdentifier i
+
+
+getOrderField :: MonadMetadata m => Identifier -> m String
+getOrderField id' = do
+  -- metadata <- getMetadata id'
+  let paths = splitDirectories $ toFilePath id'
+  let x = read $ head $ take 1 $ splitAll "-" $ head $ reverse paths :: Int
+  --let x = take 1 $ splitAll $ head $ reverse paths
+  return $ show x
+
+  -- where
+  --  empty' = fail $ "Could not parse order for " ++ show id'
+
+orderFirst :: MonadMetadata m => [Item a] -> m [Item a]
+orderFirst =
+    sortByM $ getOrderField . itemIdentifier
+  where
+    sortByM :: (Monad m, Ord k) => (a -> m k) -> [a] -> m [a]
+    sortByM f xs = fmap (map fst . sortBy (comparing snd)) $
+                   mapM (\x -> fmap (x,) (f x)) xs
+
+
+--------------------------------------------------------------------------------
+-- | The reverse of 'chronological'
+orderLast :: MonadMetadata m => [Item a] -> m [Item a]
+orderLast = liftM reverse . chronological
 
 
 pandocMathCompiler =

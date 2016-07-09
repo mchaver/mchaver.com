@@ -1,5 +1,6 @@
 ---
 title: Parse and Return Values
+date: 2016-05-09
 ---
 
 [Source Code](https://github.com/mchaver/mchaver.com/tree/master/tutorials/projects/haskell/attoparsec/2-parse-and-return-values)
@@ -128,4 +129,3 @@ Attoparsec parser always backtrack on failure, the rewind to their original star
 References:
 
 [hackage :: Data.Char](https://hackage.haskell.org/package/base-4.7.0.1/docs/Data-Char.html) defines many useful `(Char -> Bool)` functions
-

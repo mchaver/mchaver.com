@@ -1,5 +1,6 @@
 ---
 title: Parse Data in Variable Order Part 1
+date: 2016-05-10
 ---
 
 [Source Code](https://github.com/mchaver/mchaver.com/tree/master/tutorials/projects/haskell/attoparsec/3-parse-data-in-variable-order-part-1)
@@ -59,4 +60,3 @@ parsePerson = do
 ```
 
 If name is parsed first then we parse the phone number, and if phone number is parsed then we parse the name. The end result is the same regardless of which key-value pair occurs first. However, this pattern does not scale very well. Think about what it would like if we had four or five constructors in `PersonItem`. The code would become very messy.
-

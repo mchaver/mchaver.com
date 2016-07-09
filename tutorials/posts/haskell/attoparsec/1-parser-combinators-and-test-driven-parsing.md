@@ -1,5 +1,6 @@
 ---
 title: Parser Combinators and Test Driven Parsing
+date: 2016-05-09
 ---
 
 [Source Code](https://github.com/mchaver/mchaver.com/tree/master/tutorials/projects/haskell/attoparsec/1-attoparsec-template-project)
