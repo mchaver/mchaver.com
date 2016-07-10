@@ -48,6 +48,55 @@ to results in $T_{12}$ and if $t_2$ evaluates to a result in
 $T_{11}$ then the result of applying $t_1$ to $t_2$ will be a
 value of type $T_12$.
 
+Typed Lambda-Calculus Syntax
+
+\\[
+\\begin{array}{lr}
+\\text{t ::=} & terms: \\\\
+\\quad \\text{x} & variable \\\\
+\\quad \\lambda \\text{x:T.t} & abstraction \\\\
+\\quad \\text{t t} & application \\\\ \\\\
+\\text{v ::=} & values: \\\\
+\\quad \\lambda \\text{x:T.t} & abstraction \\;values \\\\ \\\\
+\\text{T ::=} & types: \\\\
+\\quad \\text{T} \\to \\text{T} & type \\; of \\; functions \\\\ \\\\
+\\Gamma \\text{ ::=} & contexts: \\\\
+\\quad \\emptyset & empty \\; context \\\\
+\\quad \\Gamma \\text{,x:T} & term \\; variable \\; binding \\\\
+\\end{array}
+\\]
+
+Typed Lambda-Calculus Evaluation $t \to t'$
+
+\\[
+\\begin{array}{cr}
+\\frac{t_1 \\to t_1'}
+      {t_1 t_2 \\to t_1' t_2}
+& \\text{(E-App1)}\\\\
+\\frac{t_2 \\to t_2'}
+      {v_1 t_2 \\to v_1 t_2'}        
+& \\text{(E-App2)}\\\\
+(\\lambda x : T_{11}) v_2 \\to [x \\mapsto v_2]t_{12} & \\text{(E-AppAbs)} \\\\
+\\end{array}
+\\]
+
+Typed Lambda-Calculus Typing $\Gamma \vdash t : T$
+
+\\[
+\\begin{array}{cr}
+\\frac{x \\; : \\; T \\; \\in \\; \\Gamma}
+      {\\Gamma \\; \\vdash \\; x \\; : \\; T}
+& \\text{(T-Var)} \\\\
+\\frac{\\Gamma , x :T_1 \\; \\vdash \\; t_2 : T_2}
+      {\\Gamma \\; \\vdash \\; \\lambda x \\; : \\; T_1 . t_2 \\; : \\; T_1 \\to T_2}
+& \\text{(T-Abs)} \\\\
+\\frac{\\Gamma \\; \\vdash \\; t_1 : T_{11} \\to T_{12} \\qquad \\Gamma \\; \\vdash \\; t_2 : T_{11}}
+      {\\Gamma \\; \\vdash \\; t_1 \\; t_2 \\; : \\; T_{12}}
+& \\text{(T-App)} \\\\
+\\end{array}
+\\]
+
+
 ###Properties of Typing
 
 ####Inversion Lemma
