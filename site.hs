@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
-import           Control.Monad               (liftM)
 
-import           Data.Monoid (mappend)
-import           Data.List                   (sortBy)
-import           Data.Ord                    (comparing)
+import           Control.Monad        (liftM)
+
+import           Data.Monoid          (mappend)
+import           Data.List            (sortBy)
+import           Data.Ord             (comparing)
 import qualified Data.Set as S
 
 import           Hakyll
@@ -13,9 +14,8 @@ import           Text.Pandoc.Options
 
 import           Safe
 
-import           System.FilePath               (splitDirectories, takeBaseName)
+import           System.FilePath      (splitDirectories, takeBaseName)
 
---------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
     match "images/*" $ do
