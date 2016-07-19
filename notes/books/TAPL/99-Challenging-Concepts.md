@@ -11,3 +11,7 @@ Sequent Calculus
 
 https://en.wikipedia.org/wiki/Cut_rule
 https://en.wikipedia.org/wiki/Cut-elimination_theorem
+
+
+
+existential unificands, Kirchner and Jouannaud 1990

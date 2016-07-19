@@ -1,5 +1,5 @@
 ---
-title: Chapter 18 - Metatheory of Recursive Types
+title: Chapter 19 - Metatheory of Recursive Types
 date:  2016-07-17
 ---
 
@@ -53,4 +53,4 @@ A tree type is a partial function $T \in {1,2}\star \to {\to, \times, Top}$
  - $T(\cdot)$ is defined
  - if $T(\pi,\sigma)$ is defined then $T(\pi)$ is defined
  - if $T(\pi) = \to$  or $T(\pi) = \times$ then $T(\pi,1)$ and $T(\pi,2)$ are defined
- - if $T(\pi) = Top$ then $T(\pi,1)$ and $T(\pi,2)$ are undefined. 
+ - if $T(\pi) = Top$ then $T(\pi,1)$ and $T(\pi,2)$ are undefined.

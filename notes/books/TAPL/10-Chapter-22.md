@@ -1,5 +1,5 @@
 ---
-title: Type Reconstruction
+title: Chapter 22 - Type Reconstruction
 date:  2016-07-17
 ---
 
@@ -95,3 +95,84 @@ then there is some solution $(\sigma ',T)$ for $(\Gamma, t, S, C)$ such that
 $\sigma ' \\ X = \sigma$.
 
 ###Unification
+
+Hindley (1969)
+Milner (1978)
+Robinson (1971)
+
+Check that the set of solutions is nonempty and find a best element, in the sense
+that all solutions can be generated straightforwardly from this one.
+
+
+###Principal Types
+
+If there is some way to instantiate the type variables in a term so that it
+becomes typable, then there is a most general or principal way of doing so .
+
+A principal solution for $(\Gamma,t,S,C)$ is a solution $(\sigma, T)$ such that,
+whenever $(\sigma',T')$ is also a solution for $(\Gamma,t,S,C)$, we have
+$\sigma \sqsubseteq \sigma'$. When $(\sigma, T)$ is a principal solution, we
+call T a principal type of t under $\Gamma$.
+
+Theorem Principal Types: If $(\Gamma,t,S,C)$ has any solution, then it has a
+principal one. The unification algorithm can be used to determine if $(\Gamma,t,S,C)$
+has a solution and calculate a principal one.
+
+The idea of principal types can be used to build a type reconstruction algorithm
+that works more incrementally. Instead of generating all constraints first and
+then solving it, we can interleave generation and solving, so that the type
+reconstruction algorithm returns a principal type at each step. These reinsures
+that the algorithm never needs to re-analyze a subterm, makes minimum commitments
+needed to achieve typability at each step. It helps pinpoint errros in the
+user's program much more precisely.
+
+###Implicit Type Annotations
+
+Languages supporting type reconstruction typically allow programmers to
+completely omit type annotations on lambda-abstractions. One way to achieve this
+is to make the parser fill in omitted annotations with freshly generated type
+variables. A better alternative is to add un-annotated abstractions to the
+syntax of terms and a corresponding rule to the constrain typing relation.
+
+CT-AbsInf (make several copies of un-annotated abstractions, allow us to choose
+  different variable as the argument type of each copy).
+
+\\[
+\\frac{X \\notin \\mathbb{X} \\quad \\Gamma, x : X \\vdash t_1 : T | \\mathbb{X} C}
+      {\\Gamma \\vdash \\lambda x . t_1 : X \\to T | \\mathbb{X} \\cup {\\x} C }
+\\]
+
+###Let-Polymorphism
+
+Associate a different variable X with each use of a function. Alter the ordinary
+typing rule for let so that it substitutes $t_1$ for x in the body and then
+typechecks the expanded expression.
+
+T-Let
+
+\\[
+\\frac{\\Gamma \\vdash t_1 : T \\qquad \\Gamma, x : T_1 \\vdash t_2 : T_2}
+      {\\Gamma \\vdash let \\; x = t_1 \\; in \\; t_2 : T_2}
+\\]
+
+T-LetPoly
+
+\\[
+\\frac{\\Gamma \\vdash [x \\mapsto t_1]t_2 : T_2 \\qquad \\Gamma \\vdash t_2 : T_1}
+      {\\Gamma \\vdash let \\; x = t_1 \\; in \\; t_2 : T_2}
+\\]
+
+CT-LetPoly
+
+\\[
+\\frac{\\Gamma \\vdash [x \\mapsto t_1]t_2 : T_2 \\qquad \\Gamma \\vdash t_2 : T_1 | \\mathbb{X} C}
+      {\\Gamma \\vdash let \\; x = t_1 \\; in \\; t_2 : T_2 | \\mathbb{X} C}
+\\]
+
+E-LetV
+
+\\[ let \\; x = v_1 \\; in \\; t_2 \\to [x \\mapsto v_1] t_2  \\]
+
+perform a step of evaluation before calculating the types.
+
+special type checking algorithm for embedded lets.

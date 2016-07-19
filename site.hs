@@ -86,7 +86,7 @@ main = hakyll $ do
     create ["notes.html"] $ do
       route idRoute
       compile $ do
-        taplNotes <- loadAll "notes/books/TAPL/*"
+        taplNotes <- orderFirst =<< loadAll "notes/books/TAPL/*"
 
         let notesCtx =
               listField "taplNotes" defaultContext (return taplNotes) `mappend`
@@ -127,11 +127,11 @@ numberedCtx = orderField "order" `mappend` defaultContext
 
 orderField :: String    -- ^ key in which to the order number should appear
            -> Context a -- ^ Resulting context
-orderField key = field key $ \i -> getOrderField $ itemIdentifier i
+orderField key = field key $ \i -> (fmap show . getOrderField) $ itemIdentifier i
 
 
-getOrderField :: MonadMetadata m => Identifier -> m String
-getOrderField id' = maybe empty' (return . show) mOrderInt
+getOrderField :: MonadMetadata m => Identifier -> m Int
+getOrderField id' = maybe empty' (return) mOrderInt
   where
     paths    = splitDirectories $ toFilePath id'
     mTitle   = headMay . reverse $ paths
