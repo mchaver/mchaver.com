@@ -86,10 +86,14 @@ main = hakyll $ do
     create ["notes.html"] $ do
       route idRoute
       compile $ do
+        ttNotes   <- orderFirst =<< loadAll "notes/type-theory/*"
         taplNotes <- orderFirst =<< loadAll "notes/books/TAPL/*"
+        ttfpNotes <- orderFirst =<< loadAll "notes/books/TTFP/*"
 
         let notesCtx =
               listField "taplNotes" defaultContext (return taplNotes) `mappend`
+              listField "ttfpNotes" defaultContext (return ttfpNotes) `mappend`
+              listField "ttNotes"   defaultContext (return ttNotes  ) `mappend`
               constField "title" "Notes" `mappend`
               defaultContext
 

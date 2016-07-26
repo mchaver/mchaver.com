@@ -1,3 +1,8 @@
+---
+title: Kind
+date:  2016-07-15
+---
+
 Kind is the type of a type constructor or rather the type of a higher-order type
 operator. A kind system is a simple typed lambda calculus with a primitive type
 written a * and called type, which is the kind of any data type which does not
@@ -38,7 +43,7 @@ Maybe :: * -> *
 runtime values.
 # is the kind of unlifted types
 
-unlifted data types are algebraic data types which live in the kind `#` rather 
+unlifted data types are algebraic data types which live in the kind `#` rather
 than kind `*`.
 
  Primitive (unboxed) types cannot be defined in Haskell, and are therefore built

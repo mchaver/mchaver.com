@@ -1,5 +1,5 @@
 ---
-title: Chapter 24 - Existensial Types
+title: Chapter 24 - Existential Types
 date:  2016-07-19
 ---
 
