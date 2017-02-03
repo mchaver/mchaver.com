@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE QuasiQuotes                #-}
@@ -15,10 +16,12 @@ import Data.Text
 import Database.Persist
 import Database.Persist.TH
 
+import GHC.Generics
+
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 User
   name Text
   age  Int
   UniqueName name
-  deriving Eq Read Show
+  deriving Eq Read Show Generic
 |]

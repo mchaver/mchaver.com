@@ -24,7 +24,6 @@ main = do
         Right user -> do
           print "Received the user from the server:"
           print user
-      
 
 
 {-

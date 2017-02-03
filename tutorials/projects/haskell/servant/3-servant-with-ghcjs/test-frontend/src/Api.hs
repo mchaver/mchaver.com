@@ -26,14 +26,8 @@ import           Test.Api
 import           Test.Types
 
 instance ToJSVal User where
-  toJSVal (User name age) = createObject [
-      "name" .=> name
-    , "age"  .=> age
-    ]
 
 instance FromJSVal User where
-  fromJSVal v = runMaybeT $ User <$> v .-> "name"
-                                 <*> v .-> "age"
 
 
 data TestAPIInterface = TestAPIInterface {
