@@ -1,14 +1,40 @@
+//	palette:
+//	#2f2f2f - text
+//	#369392 - links
+//	#4f86c6 - ??
+//	#4fb0c6 - highlights
+//	#ffffff - background
+
+html {
+	background-color: #ffffff;
+	color: #2f2f2f;
+}
+
+body {
+	font-family: "Source Sans Pro", sans-serif;
+	margin-bottom: 0;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: 0;
+	width: 90%;
+}
+
+a {
+	color: #379392
+}
+
+/*
 body {
     color: black;
     font-size: 16px;
     margin: 0px auto 0px auto;
     width: 600px;
 }
+*/
 
 div#header {
-    border-bottom: 2px solid black;
-    margin-bottom: 30px;
-    padding: 12px 0px 12px 0px;
+  margin-bottom: 30px;
+  padding: 12px 0px 12px 0px;
 }
 
 div#logo a {
@@ -32,13 +58,35 @@ div#header #navigation a {
     text-transform: uppercase;
 }
 
+nav {
+	border-bottom: 1px solid #2f2f2f;
+/*	font-family: "Source Serif Pro", serif; */
+	font-size: 1.5em;
+	margin-top: 1em;
+  margin-right: auto;
+  margin-left: auto;
+	margin-bottom: 1em;
+	text-align: center;
+	max-width: 30em;
+}
+
+nav a {
+	color: #2f2f2f;
+	text-decoration: none;
+  display: inline-block;
+  padding: 0em 1em 1em 1em;
+}
+
+nav a:hover {
+	color: #4f86c6;
+}
+
 div#footer {
-    border-top: solid 2px black;
-    color: #555;
-    font-size: 12px;
-    margin-top: 30px;
-    padding: 12px 0px 12px 0px;
-    text-align: right;
+  color: #555;
+  font-size: 12px;
+  margin-top: 30px;
+  padding: 12px 0px 12px 0px;
+  text-align: right;
 }
 
 h1 {
@@ -53,4 +101,54 @@ div.info {
     color: #555;
     font-size: 14px;
     font-style: italic;
+}
+
+pre {
+  background: #f2f2f2;
+  border: 1px solid #dddddd;
+  border-radius: 0.5em;
+  padding: 1em;
+}
+
+code {
+  background: #f2f2f2;
+  border: 1px solid #dddddd;
+  border-radius: 0.25em;
+  padding-left: 0.2em;
+  padding-right: 0.2em;
+  white-space: pre-wrap;
+}
+
+pre > code {
+  padding-left: 0;
+  border: none;
+  border-radius: none;
+}
+
+section {
+	margin-left: auto;
+	margin-right: auto;
+	max-width: 45em;
+}
+
+article {
+	border-bottom: 1px solid #2f2f2f;
+	word-wrap: break-word;
+}
+
+@media screen and (max-width: 327px) {
+	nav {
+		font-size: 1em;
+		font-weight: 400;
+	}
+}
+
+@media screen and (max-width: 403px) {
+  body {
+    width: 96%;
+  }
+  
+	.large {
+		font-size: 2em;
+	}
 }

@@ -1,0 +1,77 @@
+.sourceCode  { background: #f2f2f2; }
+.sourceCode .c { color: #a7a7a7; font-style: italic } /* Comment */
+.sourceCode .err { color: #a61717; background-color: #e3d2d2 } /* Error */
+.sourceCode .k { color: #4f86c6; font-weight: bold} /* Keyword */
+.sourceCode .o { font-weight: bold } /* Operator */
+.sourceCode .cm { color: #a7a7a7; font-style: italic } /* Comment.Multiline */
+.sourceCode .cp { color: #777777; font-weight: bold; } /* Comment.Preproc */
+.sourceCode .c1 { color: #a7a7a7; font-style: italic } /* Comment.Single */
+.sourceCode .cs { color: #a7a7a7; font-weight: bold; font-style: italic } /* Comment.Special */
+.sourceCode .gd { color: #000000; background-color: #ffdddd } /* Generic.Deleted */
+.sourceCode .gd .x { color: #000000; background-color: #ffaaaa } /* Generic.Deleted.Specific */
+.sourceCode .ge { font-style: italic } /* Generic.Emph */
+.sourceCode .gr { color: #aa0000 } /* Generic.Error */
+.sourceCode .gh { } /* Generic.Heading */
+.sourceCode .gi { color: #000000; background-color: #ddffdd } /* Generic.Inserted */
+.sourceCode .gi .x { color: #000000; background-color: #aaffaa } /* Generic.Inserted.Specific */
+.sourceCode .go { color: #888888 } /* Generic.Output */
+.sourceCode .gp { color: #555555 } /* Generic.Prompt */
+.sourceCode .gs { font-weight: bold } /* Generic.Strong */
+.sourceCode .gu { color: #aaaaaa } /* Generic.Subheading */
+.sourceCode .gt { color: #aa0000 } /* Generic.Traceback */
+.sourceCode .kc { font-weight: bold } /* Keyword.Constant */
+.sourceCode .kd { font-weight: bold } /* Keyword.Declaration */
+.sourceCode .kp { font-weight: bold } /* Keyword.Pseudo */
+.sourceCode .kr { font-weight: bold } /* Keyword.Reserved */
+.sourceCode .kt { color: #379392; font-weight: bold } /* Keyword.Type */
+.sourceCode .m { color: #4fb0c6 } /* Literal.Number */
+.sourceCode .s { color: #4fb0c6 } /* Literal.String */
+.sourceCode .na { color: #008080 } /* Name.Attribute */
+.sourceCode .nb { color: #0086B3 } /* Name.Builtin */
+.sourceCode .nc { } /* Name.Class */
+.sourceCode .no { color: #008080 } /* Name.Constant */
+.sourceCode .ni { color: #800080 } /* Name.Entity */
+.sourceCode .ne { color: #990000; font-weight: bold } /* Name.Exception */
+.sourceCode .nf { } /* Name.Function */
+.sourceCode .nn { color: #555555 } /* Name.Namespace */
+.sourceCode .nt { color: #000080 } /* Name.Tag */
+.sourceCode .nv { color: #008080 } /* Name.Variable */
+.sourceCode .ow { font-weight: bold } /* Operator.Word */
+.sourceCode .w { color: #bbbbbb } /* Text.Whitespace */
+.sourceCode .mf { color: #4fb0c6 } /* Literal.Number.Float */
+.sourceCode .mh { color: #4fb0c6 } /* Literal.Number.Hex */
+.sourceCode .mi { color: #4fb0c6 } /* Literal.Number.Integer */
+.sourceCode .mo { color: #4fb0c6 } /* Literal.Number.Oct */
+.sourceCode .sb { color: #4fb0c6 } /* Literal.String.Backtick */
+.sourceCode .sc { color: #4fb0c6 } /* Literal.String.Char */
+.sourceCode .sd { color: #4fb0c6 } /* Literal.String.Doc */
+.sourceCode .s2 { color: #4fb0c6 } /* Literal.String.Double */
+.sourceCode .se { color: #4fb0c6 } /* Literal.String.Escape */
+.sourceCode .sh { color: #4fb0c6 } /* Literal.String.Heredoc */
+.sourceCode .si { color: #4fb0c6 } /* Literal.String.Interpol */
+.sourceCode .sx { color: #4fb0c6 } /* Literal.String.Other */
+.sourceCode .sr { color: #009926 } /* Literal.String.Regex */
+.sourceCode .s1 { color: #4fb0c6 } /* Literal.String.Single */
+.sourceCode .ss { color: #990073 } /* Literal.String.Symbol */
+.sourceCode .bp { } /* Name.Builtin.Pseudo */
+.sourceCode .vc { color: #008080 } /* Name.Variable.Class */
+.sourceCode .vg { color: #008080 } /* Name.Variable.Global */
+.sourceCode .vi { color: #008080 } /* Name.Variable.Instance */
+.sourceCode .il { color: #4fb0c6 } /* Literal.Number.Integer.Long */
+.sourceCode .lineno { color: #a7a7a7; border-right: 1px solid #bfbfbf; padding-right: 1em }
+
+
+
+pre.sourceCode span.kw { color: #007020; font-weight: bold; } 
+pre.sourceCode span.dt { color: #902000; }
+pre.sourceCode span.dv { color: #40a070; }
+pre.sourceCode span.bn { color: #40a070; }
+pre.sourceCode span.fl { color: #40a070; }
+pre.sourceCode span.ch { color: #4070a0; }
+pre.sourceCode span.st { color: #4070a0; }
+pre.sourceCode span.co { color: #60a0b0; font-style: italic; }
+pre.sourceCode span.ot { color: #007020; }
+pre.sourceCode span.al { color: red; font-weight: bold; }
+pre.sourceCode span.fu { color: #06287e; }
+pre.sourceCode span.re { }
+pre.sourceCode span.er { color: red; font-weight: bold; }
