@@ -65,3 +65,5 @@ irb(main):002:0> self.class
 (activesupport/concern)[http://api.rubyonrails.org/classes/ActiveSupport/Concern.html]
 
 hooks
+
+[About Ruby](https://www.ruby-lang.org/en/about/)
