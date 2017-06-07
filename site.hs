@@ -1,9 +1,18 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
+import           Data.Default (def)
 import           Data.Monoid (mappend)
 import           Hakyll
 
+import           Text.Pandoc
 
+
+theHakyllWriterOptions :: WriterOptions
+theHakyllWriterOptions = def
+    { -- We want to have hightlighting by default, to be compatible with earlier
+      -- Hakyll releases
+      writerHighlight  = True
+    }
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
@@ -20,10 +29,10 @@ main = hakyll $ do
         compile $ pandocCompiler
             >>= loadAndApplyTemplate "templates/default.html" defaultContext
             >>= relativizeUrls
-
+    
     match "posts/*" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler
+        compile $ (pandocCompilerWith defaultHakyllReaderOptions theHakyllWriterOptions)
             >>= loadAndApplyTemplate "templates/post.html"    postCtx
             >>= loadAndApplyTemplate "templates/default.html" postCtx
             >>= relativizeUrls
