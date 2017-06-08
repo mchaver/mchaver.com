@@ -207,29 +207,20 @@ update msg model =
         (model, sendWithCsrfToken RollDieResponse request)
 ```
 
-
-
 ## Resources
-### Example Project
 
-- [servant-auth-and-elm-example](https://github.com/mchaver/servant-auth-and-elm-example)
+- [Github :: servant-auth-and-elm-example](https://github.com/mchaver/servant-auth-and-elm-example)
 
-### Elm Dependencies
+- [Github :: elm-http-builder](https://github.com/lukewestby/elm-http-builder)
 
-- [elm-http-builder](https://github.com/lukewestby/elm-http-builder)
+- [Github :: servant-auth](https://github.com/plow-technologies/servant-auth)
 
-### Haskell Dependencies 
+- [Hackage :: jose: Javascript Object Signing and Encryption and JSON Web Token library](http://hackage.haskell.org/package/jose)
 
-- [jose: Javascript Object Signing and Encryption and JSON Web Token library - Hackage](http://hackage.haskell.org/package/jose)
+- [Hackage :: servant-auth](http://hackage.haskell.org/package/servant-auth)
 
-- [servant-auth - Github](https://github.com/plow-technologies/servant-auth)
-
-- [servant-auth - Hackage](http://hackage.haskell.org/package/servant-auth)
-
-- [servant-auth-server - Hackage](http://hackage.haskell.org/package/servant-auth-server)
-
-### References
+- [Hackage :: servant-auth-server](http://hackage.haskell.org/package/servant-auth-server)
 
 - [JSON Web Token Introduction](https://jwt.io/introduction/)
 
-- [JSON Web Token - Wikipedia](https://en.wikipedia.org/wiki/JSON_Web_Token)
+- [Wikipedia :: JSON Web Token](https://en.wikipedia.org/wiki/JSON_Web_Token)
