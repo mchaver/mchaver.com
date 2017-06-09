@@ -8,8 +8,10 @@ and I am not sure if it is compatible with other compilers like Hugs).
 The ByteString library is probably a dependency (directly or indirectly) for 
 most Hackage libraries. `ByteString`s are highly efficient string types. A 
 `ByteString` is a sequence of bytes (8-bit characters). There are strict (single 
-large array) and lazy (call-by-need, good for streaming) varieties. We will 
-be briefly look at some of the source code for strict `ByteString`s. While
+large array) and lazy (call-by-need, good for streaming) varieties. For using the
+`ByteString` library, the Haddock documentation is good to get started. We will 
+briefly look at some of the source code for strict `ByteString`s to get a 
+general understanding of the implementation. While
 this level of understanding is not necessary for every day use of `ByteString`s, 
 it should be useful for having a deeper understanding of the GHC compiler.
 
