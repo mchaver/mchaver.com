@@ -98,3 +98,23 @@ data Stats = Stats
     , max      :: !Double  -- ^ Max value seen
     } deriving (Eq, Show)
 ```
+
+
+
+
+
+
+
+
+`forkServerWith` create an http server in a new thread
+uses snap to create a website 
+https://github.com/tibbe/ekg/blob/master/System/Remote/Snap.hs
+
+assets are located here
+https://github.com/tibbe/ekg/tree/master/assets
+
+
+
+
+
+
