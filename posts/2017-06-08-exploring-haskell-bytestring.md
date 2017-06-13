@@ -1,5 +1,5 @@
 ---
-title: Exploring Haskell ByteString (Strict)
+title: Exploring Haskell - ByteString (Strict)
 ---
 
 ByteString is one of the core GHC libraries (emphasis on GHC because it is not 

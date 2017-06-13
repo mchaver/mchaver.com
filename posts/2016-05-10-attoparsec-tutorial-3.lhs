@@ -1,5 +1,5 @@
 ---
-title: Attoparsec Tutorial Part 3 Parse Data in Variable Order
+title: Attoparsec Tutorial Part 3 - Parse Data in Variable Order
 ---
 
 In ths lesson, we will build upon the parses from the previous lesson. The goal 

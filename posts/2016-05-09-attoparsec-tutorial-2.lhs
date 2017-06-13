@@ -1,5 +1,5 @@
 ---
-title: Attoparsec Tutorial Part 2 Parse and Return Values
+title: Attoparsec Tutorial Part 2 - Parse and Return Values
 ---
 
 Now we want to parse something a little more complicated. Take a string input of

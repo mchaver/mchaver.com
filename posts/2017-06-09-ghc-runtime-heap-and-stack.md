@@ -1,5 +1,5 @@
 ---
-title: GHC Runtime Stack and Heap
+title: GHC Runtime - Stack and Heap
 ---
 
 Stack and heap are important data structures for program execution. First we 
