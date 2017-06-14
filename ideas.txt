@@ -1,0 +1,32 @@
+Hugs
+
+GHC history
+- laziness
+  https://news.ycombinator.com/item?id=14550606
+  https://www.youtube.com/watch?v=re96UgMk6GQ
+  https://news.ycombinator.com/item?id=1924094
+  www.cs.nott.ac.uk/%7Egmh/appsem-slides/peytonjones.ppt
+  https://github.com/purescript/purescript/wiki/Differences-from-Haskell
+  https://github.com/idris-lang/Idris-dev/wiki/Unofficial-FAQ#can-i-have-lazy-evaluation-if-i-want-it
+  https://github.com/fpco/inline-c
+
+- BBP Burning Bridges Slowly
+  https://ghc.haskell.org/trac/ghc/wiki/BurningBridgesSlowly
+
+- AMP  Applicative Monad Proposal
+  https://wiki.haskell.org/Functor-Applicative-Monad_Proposal
+  https://github.com/quchen/articles/blob/master/applicative_monad.md
+  https://www.reddit.com/r/haskell/comments/2fxqts/amp_has_landed_in_ghc_main/?st=j3x453mj&sh=7b78ec0c
+  https://github.com/ghc/ghc/commit/d94de87252d0fe2ae97341d186b03a2fbe136b04
+  https://github.com/ghc/ghc/commit/d94de87252d0fe2ae97341d186b03a2fbe136b04#diff-4255ad26ea25b80cc5d2a001a2e23e1eR412
+
+- GND GeneralizedNewtypeDeriving
+  https://ghc.haskell.org/trac/ghc/wiki/Roles2
+  http://haskell.1045720.n5.nabble.com/Narrower-per-method-GND-td5849369.html
+  
+GHC
+- laziness vs strictness
+
+smp
+http
+ftp
