@@ -32,6 +32,8 @@ $ curl -X DELETE http://localhost/users/1
 
 - `-F`, `--form <name=content>`: form data `curl -F "user=james;type=text/foo" http://localhost:7000/users`.
 
+- `-g`, `--globoff`: can include the `{}[]` characters in the URL.
+
 - `-H`, `--header <header>`: headers included with the request.
 
 - `-i`, `--include`: include HTTP headers in the output.
