@@ -94,7 +94,7 @@ Either Int String :: *
 Int -> String :: *
 ```
 
-### What to Remember about Kinds
+#### What to Remember about Kinds
 
 - Kinds are the type of a type constructor.
 - Kinds represent the arity (number of parameters) of a type constructor.
@@ -102,7 +102,7 @@ Int -> String :: *
 - `*` is the kind of an inhabited type. Inhabited types have values.
 - All other kinds (`* -> *`, `* -> * -> *`, `(* -> *) -> *`, etc.) are uninhabited types. Uninhabited types do not have values.
 
-### Names of Kinds
+#### Names of Kinds
 
 - `*` nullary type constructor.
 - `* -> *` unary type constructor.
@@ -136,7 +136,7 @@ prefixed with `'`.
 'Cons :: a -> List a -> List a
 ```
 
-### PolyKinds
+#### PolyKinds
 
 Allows kind polymorphic types. This introduces kind variables. We can name a 
 variable that has a particular kind signature in the type constructor and then 
@@ -177,7 +177,7 @@ KProxy Int :: *
 KProxy (Int,String) :: *
 ```
 
-### TypeOperators
+#### TypeOperators
 
 Allows the use and definition of of types with operator names (symbols) like 
 `(+)`, `(:>)`, `:<|>`, `.:`, etc.
@@ -197,7 +197,7 @@ Plus 1 "123" :: (Data.String.IsString b, Num a) => a + b
 Foo :: *
 ```
 
-### TypeInType
+#### TypeInType
 
 Allows kind declaration and operations to be as descriptive as types: explicit
 quantification over kind variables, higher-rank kinds, type synonyms and 
