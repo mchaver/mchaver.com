@@ -30,3 +30,9 @@ GHC
 smp
 http
 ftp
+
+prolog
+ruby metaprogramming
+ruby vs python 
+python c
+python numerical libraries
