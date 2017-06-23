@@ -260,6 +260,12 @@ instance Eq e => Container (Maybe e) where
   toList (Just x)  = [x]
 ```
 
+## What to Remember About Type Families
+
+- Data families create new types, every instance of a data family declares new constructors.
+
+- Type families can only refer to other existing types.
+
 ## References
 
 - [Haskell Wiki :: GHC/Type families](https://wiki.haskell.org/GHC/Type_families)
