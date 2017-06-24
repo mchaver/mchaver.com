@@ -136,6 +136,10 @@ article {
 	word-wrap: break-word;
 }
 
+ul li {
+	margin-bottom: 2px;
+}
+
 @media screen and (max-width: 327px) {
 	nav {
 		font-size: 1em;

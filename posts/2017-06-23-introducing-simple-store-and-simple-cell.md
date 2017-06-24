@@ -51,9 +51,7 @@ making sure nothing is operating on the shared memory.
 `MVar t`[^8] is a mutable location that is empty or contains a value `t`. 
 
 - `putMVar` sets the value in an `MVar`.
-
 - `readMVar` gets the value in an `MVar` and sets it to the value it just took.
-
 - `takeMVar` gets the value in an `MVar` and sets the value to empty.
 
 #### TMVar
@@ -61,9 +59,7 @@ making sure nothing is operating on the shared memory.
 `TMVar t`[^9] is the STM version of `MVar` and is thread safe.
 
 - `putTMVar` sets the value in an `TMVar`.
-
 - `readTMVar` gets the value in an `TMVar` and sets it to the value it just took.
-
 - `takeTMVar` gets the value in an `TMVar` and sets the value to empty.
 
 ## Dependencies
@@ -83,15 +79,10 @@ Base64[^11].
 - `DirectedKeyRaw` is data type that  has a unique key, a source url/file path, a destination 
 url/file path and a time. They all need an instance of `Hashable` and 
 `Serialize`.
-
 - `DirectedKey` is a `ByteString` of the data in `DirectedKeyRaw`.
-
-
 - `encodeKeyRaw` is like `DKeyRaw` constructor, but it enforces the `Serialize` 
 restriction on the keys.
-
 - `encodeKey` and `decodeKey` to an from a base64 `ByteString`.
-
 - `parseFilename` and `decodeFilename` escape and unescape the necesssary Unix 
 characters in a file path.
 
@@ -114,13 +105,9 @@ data SimpleStore st =
 The most important functions are:
 
 - `makeSimpleStore` save a serializable type to a file
-
 - `openSimpleStore` read a deserializable type from a file
-
 - `getSimpleStore` get the data type value from the `SimpleStore`.
-
 - `modifySimpleStore`
-
 - `updateSimpleStore`
 
 #### simple-cell
@@ -231,5 +218,3 @@ For a complete example, take a look at the [simple-cell tests](https://github.co
 [^10]: [Hackage :: cereal](https://hackage.haskell.org/package/cereal-0.5.4.0/docs/Data-Serialize.html)
 
 [^11]: [Wikipedia :: Base64](https://en.wikipedia.org/wiki/Base64)
-
-
