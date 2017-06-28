@@ -16,7 +16,7 @@ structure. groundhog is more flexible in terms of how your types are serialized
 to and from a database. While esqueleto[^3] extends persistent to permit joins, 
 groundhog does not support joins and both libraries are limited to a subset of
 possible SQL queries. However, they also remove the burden of writing 
-error-prone boilerplate code.
+error-prone boilerplate code and provide raw query options.
 
 sqlite-simple[^4] allows us to write simple type class serializations for data 
 types, `ToRow` and `FromRow`, and raw database queries.
@@ -145,6 +145,19 @@ runPhoneExample = do
 main :: IO ()
 main = runPhoneExample
 \end{code}
+
+== Conclusion
+
+I think this highlights the repetition that is required to create a full 
+application and motivates the use of libraries like persistent and groundhog.
+If you only need some simple queries, then sqlite-simple is sufficient. 
+Otherwise the burden of manually writing boilerplate non-type safe queries may 
+be too high.
+
+Moreover, all of these queries are unsafe IO. If `execute` or `query` fail then an 
+exception will be raised. It would probably be a good idea to extend `sqlite-simple`
+to `executeMay` and `queryMay` that return `IO (Either SQLError a)`. That way 
+we are required to program type safe behavior.
 
 
 [^1]: [Hackage :: persistent](https://hackage.haskell.org/package/persistent)
