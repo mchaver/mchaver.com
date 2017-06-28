@@ -17,20 +17,12 @@ body {
 	margin-right: auto;
 	margin-top: 0;
 	width: 90%;
+	line-height: 1.4;
 }
 
 a {
 	color: #379392
 }
-
-/*
-body {
-    color: black;
-    font-size: 16px;
-    margin: 0px auto 0px auto;
-    width: 600px;
-}
-*/
 
 div#header {
   margin-bottom: 30px;
