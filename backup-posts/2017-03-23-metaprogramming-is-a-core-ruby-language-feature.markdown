@@ -2,6 +2,12 @@
 title: Metaprogramming is a Core Ruby Language Feature
 ---
 
+class 
+instance
+activesupport
+attributes
+
+
 Before using Ruby professionally, I thought the language was pretty 
 similar to Python. They are both high-level, object-oriented programming 
 languages with dynamic typing systems. They do have different communities and 
