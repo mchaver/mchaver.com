@@ -6,6 +6,10 @@ class
 instance
 activesupport
 attributes
+instance variable
+class variable
+http://www.railstips.org/blog/archives/2009/05/11/class-and-instance-methods-in-ruby/
+http://www.railstips.org/blog/archives/2006/11/18/class-and-instance-variables-in-ruby/
 
 
 Before using Ruby professionally, I thought the language was pretty 

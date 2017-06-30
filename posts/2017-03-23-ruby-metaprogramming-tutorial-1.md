@@ -63,6 +63,110 @@ an object. Even when we run `irb` and run code at the top level, we are actually
 working in `main` of class `Object`. At anytime you add methods to a ruby class 
 or override existing methods.
 
+#### class and instance variables
+
+Class variables are available directly from a class to a class or an instance. 
+Instance variables require making an instance with new and then the instance 
+have access to the variables. Users only have direct access to exposed class and 
+instance variables. However, you can still access private variables through 
+`Object` methods. Class variables only have one value per class and subclass 
+hierarchy.
+
+```ruby
+class Animal
+  @@legs = 2
+  def self.legs
+    @@legs # class variable getter
+  end
+end
+
+puts Animal.legs # => 4
+```
+
+Even when you inherit a class with class variables and change the value in the 
+subclass, the value update will be reflected in the parent class as well. The 
+class variable is shared between the parent and the subclasses.
+
+
+```ruby
+class Dog << Animal
+  @@legs = 4
+end
+
+puts Animal.legs # => 4
+puts Dog.legs # => 4
+```
+
+We will remake the dog class with its own class and instance variables. We 
+expose the `@name` instance variable via `attr_accessor`.
+
+```ruby
+class Dog
+  @@legs = 4
+  @name 
+  attr_accessor :name # create getter and setter for Dog  
+end
+
+d = Dog.new
+d.name = "Fido"
+puts d.instance_variables # => [:@name]
+```
+
+#### class and instance methods
+
+Class methods are available without making an instance and require the `self`
+prefix. They cannot access instance variables. Instance variables are available
+after creating an instance with `new`. They can access class and instance 
+variables.
+
+```ruby
+class Foo
+  def self.bar
+    puts 'class method'
+  end
+  
+  def baz
+    puts 'instance method'
+  end
+end
+```
+
+
+#### include 
+
+The `include` statement mixes in a module into a class. It is a simple form of 
+multiple inheritance and forms a "is-a" relationship. It makes its methods 
+available to an instance of the class that includes it.
+
+```ruby
+module Foo 
+  def foo 
+    puts "Hello from Foo"
+  end
+end
+
+class Bar
+  include Foo
+end
+
+Bar.new.foo
+Hello from Foo
+```
+
+#### extend
+
+The `extend` statement makes a module's methods to class. We can call the 
+methods directly from the class without making a new instance.
+
+```ruby
+class Baz
+  extend Foo
+end
+
+Baz.foo
+Hello from Foo
+```
+
 #### self
 
 `self` is a contextual pointer. It points to the current object the program is 
@@ -109,6 +213,7 @@ end
 Library
 ```
 
+
 #### BasicObject
 
 `BasicObject`[^1] is the parent object of all objects in Ruby. It can be used 
@@ -150,41 +255,6 @@ method                      methods                   private_methods
 protected_methods           public_method             public_methods
 public_send                 remove_instance_variable  respond_to?
 respond_to_missing?         send
-```
-
-#### include 
-
-The `include` statement mixes in a module into a class. It is a simple form of 
-multiple inheritance and forms a "is-a" relationship. It makes its methods 
-available to an instance of the class that includes it.
-
-```ruby
-module Foo 
-  def foo 
-    puts "Hello from Foo"
-  end
-end
-
-class Bar
-  include Foo
-end
-
-Bar.new.foo
-Hello from Foo
-```
-
-#### extend
-
-The `extend` statement makes a module's methods to class. We can call the 
-methods directly from the class without making a new instance.
-
-```ruby
-class Baz
-  extend Foo
-end
-
-Baz.foo
-Hello from Foo
 ```
 
 [^1]: [ruby-doc :: BasicObject](https://ruby-doc.org/core-2.4.1/BasicObject.html)
