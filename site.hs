@@ -6,6 +6,16 @@ import           Hakyll
 
 import           Text.Pandoc
 
+import qualified Data.HashMap.Lazy as M
+import           Data.List                       (intersperse)
+
+import           Text.Blaze.Html                 (toHtml, toValue, (!))
+import Text.Blaze.Html.Renderer.String (renderHtml)
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
+
+import Control.Monad (forM)
+import Data.Maybe (catMaybes)
 
 theHakyllWriterOptions :: WriterOptions
 theHakyllWriterOptions = def
@@ -13,6 +23,50 @@ theHakyllWriterOptions = def
       -- Hakyll releases
       writerHighlight  = True
     }
+
+postCtxWithTags :: Tags -> Context String
+-- postCtxWithTags tags = tagsField "tags" tags `mappend` postCtx
+postCtxWithTags tags = tt "tags" tags `mappend` postCtx
+
+tt = tagsFieldWith getTags simpleTagRenderLink (mconcat)
+
+simpleTagRenderLink :: String -> (Maybe FilePath) -> Maybe H.Html
+simpleTagRenderLink _   Nothing         = Nothing
+simpleTagRenderLink tag (Just filePath) =
+  Just $ H.a ! A.class_ "tag" ! A.href (toValue $ toUrl filePath) $ toHtml tag
+
+tagsFieldWith' :: (Identifier -> Compiler [String])
+              -- ^ Get the tags
+              -> (String -> (Maybe FilePath) -> Maybe H.Html)
+              -- ^ Render link for one tag
+              -> ([H.Html] -> H.Html)
+              -- ^ Concatenate tag links
+              -> String
+              -- ^ Destination field
+              -> Tags
+              -- ^ Tags structure
+              -> Context a
+              -- ^ Resulting context
+tagsFieldWith' getTags' renderLink cat key tags = field key $ \item -> do
+    tags' <- getTags' $ itemIdentifier item
+    links <- forM tags' $ \tag -> do
+        route' <- getRoute $ tagsMakeId tags tag
+        return $ renderLink tag route'
+
+    return $ renderHtml $ cat $ catMaybes $ links
+
+{-
+listContextWith :: Context String -> String -> Context a
+listContextWith ctx s = listField s ctx $ do
+    identifier <- getUnderlying
+    metadata <- getMetadata identifier
+    let metas = maybe [] (map trim . splitAll ",") $ M.lookup s metadata
+    return $ map (\x -> Item (fromFilePath x) x) metas
+-}
+{-
+listField "things" (field "thing" (return . itemBody))
+-- >    (sequence [makeItem "fruits", makeItem "vegetables"])
+-}
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
@@ -30,11 +84,27 @@ main = hakyll $ do
             >>= loadAndApplyTemplate "templates/default.html" defaultContext
             >>= relativizeUrls
     
+    tags <- buildTags "posts/*" (fromCapture "tags/*.html")
+    
+    tagsRules tags $ \tag pattern -> do
+        let title = "Posts tagged \"" ++ tag ++ "\""
+        route idRoute
+        compile $ do
+            posts <- recentFirst =<< loadAll pattern
+            let ctx = constField "title" title
+                      `mappend` listField "posts" postCtx (return posts)
+                      `mappend` defaultContext
+
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/tag.html" ctx
+                >>= loadAndApplyTemplate "templates/default.html" ctx
+                >>= relativizeUrls
+    
     match "posts/*" $ do
         route $ setExtension "html"
         compile $ (pandocCompilerWith defaultHakyllReaderOptions theHakyllWriterOptions)
-            >>= loadAndApplyTemplate "templates/post.html"    postCtx
-            >>= loadAndApplyTemplate "templates/default.html" postCtx
+            >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithTags tags)
+            >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
             >>= relativizeUrls
 
     create ["archive.html"] $ do
@@ -42,7 +112,7 @@ main = hakyll $ do
         compile $ do
             posts <- recentFirst =<< loadAll "posts/*"
             let archiveCtx =
-                    listField "posts" postCtx (return posts) `mappend`
+                    listField "posts" (postCtxWithTags tags) (return posts) `mappend`
                     constField "title" "Archives"            `mappend`
                     defaultContext
 
@@ -57,7 +127,7 @@ main = hakyll $ do
         compile $ do
             posts <- recentFirst =<< loadAll "posts/*"
             let indexCtx =
-                    listField "posts" postCtx (return posts) `mappend`
+                    listField "posts" (postCtxWithTags tags) (return posts) `mappend`
                     constField "title" "Home"                `mappend`
                     defaultContext
 
