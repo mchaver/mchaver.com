@@ -1,5 +1,6 @@
 ---
 title: Linux Network Tools - cURL
+tags: linux, networking
 ---
 
 ## cURL (see URL)

@@ -1,5 +1,6 @@
 ---
 title: Ruby Metaprogramming Tutorial Part 1 - Introduction and Background
+tags: ruby
 ---
 
 ## Introduction

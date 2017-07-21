@@ -1,5 +1,6 @@
 ---
 title: Attoparsec Tutorial Part 3 - Parse Data in Variable Order
+tags: haskell, attoparsec
 ---
 
 In ths lesson, we will build upon the parses from the previous lesson. The goal 

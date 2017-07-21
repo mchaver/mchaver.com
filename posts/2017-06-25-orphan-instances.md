@@ -1,5 +1,6 @@
 ---
 title: Orphan Instances
+tags: haskell
 ---
 
 ## Global type class instances

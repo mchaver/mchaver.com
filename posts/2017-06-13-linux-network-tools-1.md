@@ -1,5 +1,6 @@
 ---
 title: Linux Network Tools - Netcat
+tags: linux, networking
 ---
 
 ## Netcat (nc)

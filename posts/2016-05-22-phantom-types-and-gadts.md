@@ -1,5 +1,6 @@
 ---
 title: Phantom Types and Generalized Algebraic Data Types
+tags: haskell
 ---
 
 ## Phantom Types

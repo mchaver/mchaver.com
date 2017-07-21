@@ -1,6 +1,6 @@
 ---
 title: Lenses Foundation - SimpleLens
-tags: lens,haskell
+tags: haskell, lens
 ---
 
 If you have been using Haskell for a while or browsed the packages in Hackage, 
@@ -8,10 +8,9 @@ there is a good chance that you have come across a package called `lens`. `lens`
 provides a large assorment of types and functions that simplify data access and
 updates in a functional way. It can help us solve many problems, but the size 
 and scope of the package, as well as complex type signatures, make it 
-challenging to approahc for new users. Moreover, we may not need all of the 
-tools from the `lens` package and might want to implement a simplified subset of
-it. I believe the best way to start using Lenses is Haskell is by implementing 
-a simple subset.
+challenging for new users to approach. Moreover, we may not need all of the 
+tools from the `lens` package. I believe the best way to start using Lenses is 
+Haskell is by implementing a simple subset.
 
 The first tool we want to discuss are Lenses. Lenses are functional references. 
 Reference means that they point to parts of a value and allow us to access or 
@@ -30,7 +29,7 @@ update one of the rows.
 λ> updatedUser = user { email = "admin@sanjay.com" }
 ```
 
-That is relatively simple, but it becomes less manageable when we introduce an
+That is relatively simple, but it becomes more complex when we introduce an
 embedded record type.
 
 ```haskell
@@ -41,143 +40,128 @@ embedded record type.
 λ> updateEmployee = employee { phone = updatePhone }
 ```
 
+Lenses can help simplify this problem.
 
-Why do we need Lenses? We will motivate it with a simple example.
+== Background
 
-```haskell
-data Person 
-  Person =
-    { name :: String
-    , age  :: Int
-    , address :: String
-    }
-    
-main = do
-  let l = Person "Luis" 
-  let z = l { address = "" }
-  let x = l { address = "" }
-```
+There are two types from `base` that we need to understand before we begin with
+Lenses: `Identity` and `Const`. We will focus on how they work. Once we get to 
+Lenses we understand their purpose.
+
+==== Data.Functor.Identity
+
+You may have come across the `id` function before. It takes a value and returns 
+it. `id` is useful for when you are required to provide a function but do not 
+want to change the value.
 
 ```haskell
-data PhoneType = Mobile | Home | Work
-
-data Phone = 
-  Phone 
-    { phoneNumber :: String
-    , phoneType   :: PhoneType
-    }
-
-data Person =
-  Person
-    { name  :: String
-    , age   :: Int
-    , phone :: Phone
-    }
-
-let fatima = Person "Fatima" 53 (Phone "999111222" Mobile)
-
-let oldPhone  = phone fatima
-    newPhone  = phone { phoneNumber ""}
-    newFatima = fatima { phone = phoneNumber }
+λ> id "Hello world!"
+Identity "Hello world!"
+λ> id (1 + 1)
+2
 ```
 
-
-
-
-```haskell
-
-data Phone 
-  Phone 
-    { phoneNumber :: String
-    } deriving (Eq,Read,Show)
-
-data User
-  User 
-    { userName     :: String
-    , userPassword :: String
-    , userPhone    :: Phone
-    } deriving (Eq,Read,Show)
-    
-_phoneNumber :: SimpleLens User String
-_phoneNumber a_to_f_a (Phone uPhone) :: SimpleLens User String
-
-_userPhone :: SimpleLens User Phone
-_userPhone  a_to_f_a (Phone uPhone) = Phone <$> a_to_f_a uPhone
-
-
-_name a_to_f_a (Person pName pAge) = (\ppName -> Person ppName pAge) <$> a_to_f_a pName
-
-
-_userPhone . _phoneNumber
-```
-
-\begin{code}
-{-# LANGUAGE RankNTypes #-}
-\end{code}
-
-implies `ExplicitForAll` forall followed by type parameters. Allows us to use 
-`forall` in a type alias.
-
-\begin{code}
-import Data.Functor.Const
-import Data.Functor.Identity
-\end{code}
-
-defines `Const` and `Identity`, two types/type constructors of kind `* -> *`.
-Identity is a wrapper, it might seem useless but we will need it.
-
-`b` is a phantom type.
-
-```haskell
-newtype Const a b = Const { getConst :: a }
-
-instance Functor (Const m) where
-    fmap _ (Const v) = Const v
-```
-
-Whatever you try to fmap to Const, the value inside will not change. This is
-useful for when you use it in a type that will apply a fmap but you do not 
-actually want it to change.
-
-similar to `id`.
+`Identity` is similar `id`, but it is a newtype that has one type parameter and 
+has an instance of `Functor`. `Identity` is a container type like `Maybe`. 
 
 ```haskell
 newtype Identity a = Identity { runIdentity :: a }
 
 instance Functor Identity where
-    fmap     = coerce
-
-instance Functor Identity where
-  fmap f (Identity a) = Identity $ f a
+  fmap = coerce
 ```
 
+We can make the `Functor` instance for `Identity` a bit clearer.
+
+```haskell
+instance Functor Identity where
+  fmap f (Identity i) = Identity $ f i
+```
+
+Try out `Identity` in `ghci`.
+
+```haskell
+λ> (++ " world!") <$> Identity "Hello"
+Identity "Hello world!"
+λ> runIdentity $ (+1) <$> Identity 1
+2
+```
+
+==== Data.Functor.Const
+
+`const` is another common function. It takes two items, returns the first and
+discards the second.
+
+```haskell
+λ> const True "Hello world!"
+True
+λ> const 1 2
+1
+λ> const "Hello world!" Nothing
+"Hello world!"
+```
+
+Much like the relation between `id` and `Identifier`, there are `const` and 
+`Const`. `Const` has two type parameters `a` and `b`, but it only takes and 
+returns a value of type `a`. `b` is a phantom type. `b` does not exist on the 
+right side of the declaration and we do not provide a value of type `b`. 
+
+The `Functor` instance for `Const` is also 
+interesting. It ignores the function and does not 
+apply it to value of type `a`. The returned valued remains constant.
+
+```haskell
+newtype Const a b = Const { getConst :: a }
+
+instance Functor (Const m) where
+  fmap _ (Const v) = Const v
+```
+
+We can try out `Const` in `ghci`.
+
+```haskell
+λ> not <$> Const True
+Const True
+λ> getConst $ (+1) <$> Const 1
+1
+λ> (++ " world!") <$> Const "Hello"
+Const "Hello"
+```
+
+== SimpleLens
+
+We will implment a simplified version of Lens called SimpleLens.
+
+\begin{code}
+{-# LANGUAGE RankNTypes #-}
+
+import Data.Functor.Const
+import Data.Functor.Identity
+\end{code}
+
+`RankNTypes` implies `ExplicitForAll`. It allows us to use `forall` in a type 
+alias. We import `Const` and `Identity` as we discussed above.
 
 \begin{code}
 type SimpleLens s a = forall f. Functor f => (a -> f a) -> s -> f s
 \end{code}
 
-A `SimpleLens` takes two types. `s` which is a container type with a `* -> *`, 
-`* -> * -> *`, like `Maybe`, `[]`, `()`, etc. and the type in the container that 
-we want to reference. `SimpleLens Maybe Int`, `SimpleLens Maybe String`,
- `SimpleLens Either Int`, etc.
+A `SimpleLens` has two polymorphic types. `s` is a container type like 
+`Maybe`, `[]`, `(,)`, `Either`, etc. `a` is the type in the container that 
+we want to reference. For example, `SimpleLens Maybe Int`, 
+`SimpleLens (,) String`, `SimpleLens Either Int`, etc.
  
 On the right hand side there is a type class restriction for `f`. We will need 
-another container `f` that has a Functor instance.
+another container type `f` that has a Functor instance. This is where `Const`
+and `Identity` will be used.
 
-`(a -> f a) -> s -> f s`
+The first argument is `(a -> f a)`, this a function that takes an `a` and 
+returns `a` in the `f` container, which has a Functor instance. `a` is the type 
+we are referencing that is contained by `s`, then we pass it an instance of `s` 
+and we get `s` contained in `f`.
 
-The first argument is `(a -> f a)`, we need a function that takes an `a` and 
-returns it in the `f` container. `f` has a Functor instance and contain some 
-element `a`. `a` is the type we are referencing that is contained by `s`, then 
-we pass it an instance of `s` and we get `s` in `f`. We need a function from.
-
-- SimpleLens is a type synonym.
-- SimpleLens has two type parameters: `s` the container type and `a` the type 
-of the record in the container.
-- SimpleLens requires a second container type `f` that has a `Functor` instance.
-- `(a -> f a)` and `s` and it returns `f s`, the container type wrapped in the 
-second container.
-
+Now we define our first lens. Person will be the `s` type and `String` for 
+`name` and `Int` for `age` will be the `a` types in each `SimpleLens`.
 
 \begin{code}
 data Person =
@@ -186,114 +170,171 @@ data Person =
     , age  :: Int
     } deriving (Eq,Read,Show)
 
-
+-- expanded type signature
+-- _name :: forall f. Functor f => (String -> f String) -> Person -> f Person
 _name :: SimpleLens Person String
 _name a_to_f_a (Person pName pAge) = (\ppName -> Person ppName pAge) <$> a_to_f_a pName
 
+-- expanded type signature
+-- _age :: forall f. Functor f => (Int -> f Int) -> Person -> f Person
 _age :: SimpleLens Person Int
 _age a_to_f_a (Person pName pAge) = (\ppAge -> Person pName ppAge) <$> a_to_f_a pAge
 \end{code}
 
-by fmapping Person the `s` type into `f a`, `_name` returns a type `f s` because
-
-
 `_name` is a lens that focuses on the `name` record of `Person`. `a_to_f_a` is 
 the function we need to pass in `(a -> f a)` and we apply it directly to the 
-name record of Person. Note that the type of name matches `SimpleLens s a` is
-`SimpleLens Person String`.
+name record of Person. `_age` is a lens that focuses on the `age` record of 
+Person.
 
-This means we still need to a function that has a functor instance to `_name` when 
-we try to apply it to a `Person` value.
+By themselves we cannot do anything directly with `_name` or `_age`. We will 
+need some helper functions. Before continuing, here is what we should now about
+`SimpleLens` so far:
+
+- `SimpleLens` is a type synonym.
+
+- `SimpleLens` has two polymorphic type parameters: `s` is a container type, `a` 
+the type of a value contained in `s`.
+
+- It takes `(a -> f a)` and `s` and it returns `f s`. The container type `s` 
+wrapped in a second container `f`.
+
+- `f` has a `Functor` instance.
+
+== SimpleLens helper functions
+
+==== view
+
+The first helper function we will implement is `view`. `view` takes a 
+`SimpleLens` and an `s` then it returns an `a` from `s`. `view` functions as a
+getter. It does not change the value we are referencing, it just returns it. We
+will use `Const` to retrieve `a` from `s`.
 
 \begin{code}
-view :: SimpleLens s a -> s -> a
 -- view :: ((a -> f a) -> s -> f s) -> s -> a
+view :: SimpleLens s a -> s -> a
 view l = getConst . l Const
 \end{code}
 
-`view` takes `_name` and provides `_name` with `Const` for its `(a -> f a)` 
-function. 
-
-view lifts the 
-`newtype Const a b = Const { getConst :: a }`
+We can use `view` and `_name` together to get the `name` record from `Person`.
 
 ```haskell
-instance Functor (Const m) where
-    fmap _ (Const v) = Const v
+λ> view _name $ Person "Marina" 21
+"Marina"
 ```
 
-throw away whatever gets passed to Const in a functor. Useful for when a fmap 
-is expected as part of a function but we do not want any changes.
+The way `view` and `_name` work together may still be a bit unclear. It is 
+useful to write out what `view name` would look like.
 
-`view` passes `Const` which has kind `* -> * -> *` to the lens we pass to `view`.
-`getConst` returns the first value and ignores the second.
+```haskell
+-- view _name
+view_name :: Person -> String
+view_name (Person pName pAge) = getConst $ (\ppName -> Person ppName pAge) <$> Const pName
+```
+
+If you remember the definition of `Functor Const` the `f` function will not 
+applied to the value inside `Const`. `(\ppName -> Person ppName pAge)` will be
+ignored and `getConst $ Const pName` will be reduced to `pName`.
+
+To solidify our understanding of `view` and `SimpleLens`, we will repeat the 
+same for age.
+
+```haskell
+-- view _age
+view_age :: Person -> Int
+view_age (Person pName pAge) = getConst $ (\ppAge -> Person pName pAge) <$> Const pAge
+```
+
+==== set
+
+`set` is the setter helper function for `SimpleLens`. It takes a `SimpleLens`,
+an `a` that we want to insert in `s`, `s` and it returns `s` with the new `a`
+value. `set` uses `Identity` to apply the new `a` into `s` and return `s`.
 
 \begin{code}
+-- set :: ((a -> f a) -> s -> f s) -> a -> s -> s
 set :: SimpleLens s a -> a -> s -> s
 set l b = runIdentity . l (\_ -> Identity b)
 \end{code}
 
+Here is an example.
+
+```haskell
+λ> set _name "Serena" $ Person "Marina" 21
+Person "Serena" 21
+```
+
+Just like we did above, we explicit write out `set` with `_name` to make sure 
+we understand how `set` works with a lens.
+
+```haskell
+-- set _name
+set_name :: String -> Person -> Person
+set_name b (Person pName pAge) = runIdentity $ (\ppName -> Person ppName pAge) <$> Identity b
+```
+
+==== over
+
+`over` is the same as `set` except instead of taking a value of `a`, it takes a
+function `(a -> a)`. It allows us to modify an existing value inside `s`
+
 \begin{code}
+-- over :: ((a -> f a) -> s -> f s) -> (a -> a) -> s -> s
 over :: SimpleLens s a -> (a -> a) -> s -> s
 over l f = runIdentity . l (Identity . f)
-
---over :: ASetter s t a b -> (a -> b) -> s -> t
---over l f = runIdentity #. l (Identity #. f)
 \end{code}
 
+And a simple example.
+
+```haskell
+λ> over _age (+1) $ Person "Marina" 21
+Person "Marina" 22
+```
+
+Expanded form of `over _age`.
+
+```haskell
+-- over _age
+over_age :: (Int -> Int) -> Person -> Person
+over_age a_to_a (Person pName pAge) = runIdentity $ (\ppAge -> Person pName ppAge) <$> Identity (a_to_a pAge)
+```
+
+==== SimpleLens with embedded record
 
 \begin{code}
-data Phone =
+data Phone = 
   Phone 
-    { phoneNumber :: String
-    } deriving (Eq,Read,Show)
+    { phoneNumber :: String 
+    } deriving (Show)
 
-data User =
-  User 
-    { userName     :: String
-    , userPassword :: String
-    , userPhone    :: Phone
-    } deriving (Eq,Read,Show)
+data Employee = 
+  Employee 
+    { employeeName :: String
+    , employeePhone :: Phone 
+    } deriving (Show)
     
-_phoneNumber :: SimpleLens User Phone
-_phoneNumber a_to_f_a (User uName uPassword uPhone) = (\newPhone -> User uName uPassword uPhone) <$> a_to_f_a uPhone
+_phoneNumber :: SimpleLens Phone String
+_phoneNumber a_to_f_a (Phone phoneNum) = (\pPhoneNum -> Phone pPhoneNum) <$> a_to_f_a phoneNum
 
-_userPhone :: SimpleLens Phone String
-_userPhone  a_to_f_a (Phone phoneNum) = (\z -> Phone z) <$> a_to_f_a phoneNum
+_employeePhone :: SimpleLens Employee Phone
+_employeePhone a_to_f_a (Employee eName ePhone) = (\eEPhone -> Employee eName eEPhone) <$> a_to_f_a ePhone
 
---blah = User "Gupta" "asdfasdfasdf" (Phone "123-456-789")
---blah2 = view (_)
---_name a_to_f_a (Person pName pAge) = (\ppName -> Person ppName pAge) <$> a_to_f_a pName
+_employeeName :: SimpleLens Employee String
+_employeeName a_to_f_a (Employee eName ePhone) = (\eEName -> Employee eEName ePhone) <$> a_to_f_a eName
 
-
---_userPhone . _phoneNumber
-\end{code}
-
-\begin{code}
-sanjay = Person "Sanjay" 23
-sanjayName = view _name sanjay
-jay = set _name "Jay" sanjay
-jayName = view _name jay
-
-sanjayOlder = over _age (+1) sanjay
-
+main :: IO ()
 main = do 
-  print sanjayName
-  print sanjayOlder
+  let matthias         = Employee "Matthias" $ Phone "123-345-8888"
+      matthiasNewPhone = set (_employeePhone . _phoneNumber) "222-333-1212" matthias
+      matthiasJr       = set (_employeePhone . _phoneNumber) "432-234-1177" $ over _employeeName (++ " Jr.") $ matthias
+  print matthias
+  print matthiasNewPhone
+  print matthiasJr
 \end{code}
 
+Here is clean implementation of [SimpleLens.hs](https://gist.github.com/mchaver/d00a4ea654c618cf16457d9de84f1a02)
+that you can use to play around with.
 
-
-```
-over :: ASetter s t a b -> (a -> b) -> s -> t
-over l f = runIdentity #. l (Identity #. f)
-```
-
-a lens focuses on a single target
-
-== Lens laws
-
-- [24 Days of GHC Extensions: Rank N Types](https://ocharles.org.uk/blog/guest-posts/2014-12-18-rank-n-types.html)
+== References
 
 - [GHC Users Guide :: 9.20. Arbitrary-rank polymorphism](https://downloads.haskell.org/%7Eghc/latest/docs/html/users_guide/glasgow_exts.html#arbitrary-rank-polymorphism)
 

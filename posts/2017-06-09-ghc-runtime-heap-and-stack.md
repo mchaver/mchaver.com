@@ -1,5 +1,6 @@
 ---
 title: GHC Runtime - Stack and Heap
+tags: haskell
 ---
 
 Stack and heap are important data structures for program execution. First we 

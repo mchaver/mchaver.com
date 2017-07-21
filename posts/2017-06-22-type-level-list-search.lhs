@@ -1,5 +1,6 @@
 ---
 title: Type Level List Search
+tags: haskell
 ---
 
 We will take a quick look at how to handle element search in two kinds of type 

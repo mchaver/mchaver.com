@@ -1,5 +1,6 @@
 ---
 title: Introducing simple-store and simple-cell
+tags: haskell, db
 ---
 
 simple-store[^1] provides persistence, atomicity and consistency for a shared data 

@@ -1,5 +1,6 @@
 ---
 title: SKI Combinator Calculus in JavaScript
+tags: combinator calculus
 ---
 
 Combinatory logic is a variant of lambda calculus that does not have bound 

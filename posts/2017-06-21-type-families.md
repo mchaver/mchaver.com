@@ -1,5 +1,6 @@
 ---
 title: An Introduction to Type Families
+tags: haskell
 ---
 
 ## Review

@@ -1,5 +1,6 @@
 ---
 title: Using curl and GraphQL
+tags: command line, GraphQL
 ---
 
 POST a mutation to login. We can put that GraphQL query in the body. We will

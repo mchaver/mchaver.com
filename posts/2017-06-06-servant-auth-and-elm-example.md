@@ -1,5 +1,6 @@
 ---
 title: Servant Auth and Elm
+tags: haskell, elm
 ---
 
 [servant-auth-and-elm-example](https://github.com/mchaver/servant-auth-and-elm-example)

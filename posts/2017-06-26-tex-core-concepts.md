@@ -1,5 +1,6 @@
 ---
 title: TeX Core Concepts
+tags: TeX
 ---
 
 TeX is a program that typesets boxes. TeX builds pages based on boxes and glue. 

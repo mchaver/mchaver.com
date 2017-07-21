@@ -1,5 +1,6 @@
 ---
 title: Kinds in Haskell
+tags: haskell
 ---
 
 ## Constructors

@@ -1,5 +1,6 @@
 ---
 title: Simple SQLite queries with sqlite-simple
+tags: haskell, SQL
 ---
 
 == Motivation

@@ -1,5 +1,6 @@
 ---
 title: Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing
+tags: haskell, attoparsec
 ---
 
 [Attoparsec](http://hackage.haskell.org/package/attoparsec) is a 
