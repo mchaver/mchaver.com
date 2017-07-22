@@ -101,7 +101,7 @@ True
 "Hello world!"
 ```
 
-Much like the relation between `id` and `Identifier`, there are `const` and 
+Much like the relation between `id` and `Identity`, there are `const` and 
 `Const`. `Const` has two type parameters `a` and `b`, but it only takes and 
 returns a value of type `a`. `b` is a phantom type. `b` does not exist on the 
 right side of the declaration and we do not provide a value of type `b`. 
