@@ -56,7 +56,7 @@ want to change the value.
 
 ```haskell
 λ> id "Hello world!"
-Identity "Hello world!"
+"Hello world!"
 λ> id (1 + 1)
 2
 ```
