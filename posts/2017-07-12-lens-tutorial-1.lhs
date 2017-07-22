@@ -1,5 +1,5 @@
 ---
-title: Lenses Foundation - SimpleLens
+title: Lens Tutorial - SimpleLens
 tags: haskell, lens
 ---
 
@@ -15,7 +15,7 @@ Haskell is by implementing a simple subset.
 The first tool we want to discuss are Lenses. Lenses are functional references. 
 Reference means that they point to parts of a value and allow us to access or 
 modify them. Functional means that they provide composibility. Lenses abstract
-getters and setters for Haskell records (product types).
+getters and setters for Haskell product types (records).
 
 == Motivation
 
