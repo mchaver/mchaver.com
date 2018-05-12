@@ -36,6 +36,8 @@ data Person =
     { name :: String
     , age :: Int
     } deriving (Generic)
+
+type Human = Person
 \end{code}
 
 A type without a constructor.
@@ -137,6 +139,8 @@ Now we can convert a type to a `Symbol` and the `Symbol` to a `String`.
 \begin{code}
   print $ symbolVal (Proxy :: Proxy (TypeName Int)) -- convert Int to ("Int" :: Symbol) to ("Int" :: String)
   print $ symbolVal (Proxy :: Proxy (TypeName Person)) -- convert Person to ("Person" :: Symbol), using Generic, then to ("Int" :: String)
+  print $ symbolVal (Proxy :: Proxy (TypeName String))
+  print $ symbolVal (Proxy :: Proxy (TypeName Human))
 \end{code}
 
 === Notes:
