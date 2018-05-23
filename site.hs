@@ -78,7 +78,7 @@ main = hakyll $ do
         route   idRoute
         compile compressCssCompiler
 
-    match (fromList ["about.rst", "contact.markdown"]) $ do
+    match (fromList ["about.rst", "contact.markdown", "demos.markdown"]) $ do
         route   $ setExtension "html"
         compile $ pandocCompiler
             >>= loadAndApplyTemplate "templates/default.html" defaultContext
@@ -137,6 +137,11 @@ main = hakyll $ do
                 >>= relativizeUrls
 
     match "templates/*" $ compile templateBodyCompiler
+
+    -- loads the react project directly without changing anything
+    match "demos/measurements/**" $ do
+      route idRoute
+      compile $ getResourceString
 
 
 --------------------------------------------------------------------------------
