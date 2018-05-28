@@ -139,9 +139,9 @@ main = hakyll $ do
     match "templates/*" $ compile templateBodyCompiler
 
     -- loads the react project directly without changing anything
-    match "demos/measurements/**" $ do
+    match "demos/**" $ do
       route idRoute
-      compile $ getResourceString
+      compile $ getResourceLBS
 
 
 --------------------------------------------------------------------------------

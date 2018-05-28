@@ -1,0 +1,179 @@
+
+body {
+    font-family: 'Open Sans', sans-serif;
+}
+
+--nav-height: 5.5em;
+
+.space {
+    margin-top: 20em;
+    margin-bottom: 20em;
+    min-height: 20em;
+}
+
+#overwrite, #preserve-input {
+    padding: 0.3em 0.25em 0.25em 0.25em;
+    font-size: 2em;
+    height: 1.2em;
+    color: black;
+    resize: none;
+    overflow: hidden;
+}
+
+#overwrite {
+    margin-top: .25em;
+}
+
+.settings {
+    margin-top: 0.5em;
+}
+
+--table-marge: 10em;
+
+.small-nav {
+    margin-top: var(--table-margin);
+}
+
+.medium-nav {
+    margin-top: calc(var(--table-margin) + 2.5em);
+}
+
+.large-nav {
+    margin-top: calc(var(--table-margin) + 7em);
+}
+
+.xlarge-nav {
+    margin-top: calc(var(--table-margin) + 9.5em);
+}
+
+table.kanatable {
+    background-color: #f8f9fa;
+    color: #333;
+    margin: 1em 0;
+    border: 1px solid #a2a9b1;
+    border-collapse: collapse;
+    vertical-align: top;
+    padding: 2px;
+    margin: 10em 0 0 2em;
+}
+
+@media(max-width: 767px) {
+    table {
+	font-size: 1.5em;
+    }
+
+    #overwrite, #preserve-input {
+	width: 90%;
+    }
+}
+
+@media(min-width: 768px) {
+    table {
+	font-size: 1em;
+    }
+
+    #overwrite, #preserve-input {
+	width: 50%;
+    }
+}
+
+table.kanatable > tr > th, table.kanatable > tr > td, table.kanatable > * > tr > th,table.kanatable > * > tr > td {
+    border: 1px solid #a2a9b1;
+    padding: 0.2em 0.4em;
+}
+
+table.kanatable > tr > td, table.kanatable > * > tr > td {
+    word-wrap: break-word;
+}
+
+#nav {
+    text-align: center;
+    position: fixed;
+    top: 0;
+    background-color: white;
+    width: 100vw;
+    z-index: 100;
+    box-shadow: 0 4px 5px -2px grey;
+    height: var(--nav-height);
+}
+
+/* render keys that produce a particular kana in code tag */
+code {
+    color: #000;
+    background-color: #f8f9fa;
+    border: 1px solid #eaecf0;
+    border-radius: 2px;
+    padding: 1px 4px;
+    font-family: monospace,monospace;
+    font-size: 0.875em;
+}
+
+
+.fixedElement {
+    background-color: #c0c0c0;
+    position:fixed;
+    top:0;
+    width:100%;
+    z-index:100;
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateY(26px);
+    -ms-transform: translateY(26px);
+    transform: translateY(26px);
+}
+
+html {
+    box-sizing: border-box;
+}
+
+.stv-radio-buttons-wrapper {
+    clear: both;
+    display: inline-block;
+    font-size: 0.75em;
+}
+
+.stv-radio-button {
+    font-family: Lato,'Helvetica Neue',Arial,Helvetica,sans-serif;
+    position: absolute;
+    left: -9999em;
+    top: -9999em;
+}
+
+.stv-radio-button + label {
+    float: left;
+    padding: .5em 1em;
+    cursor: pointer;
+    border: 1px solid rgba(34,36,38,.15);
+    margin-right: -1px;
+    color: rgba(0,0,0,.87);
+    background-color: #fff;
+}
+
+.stv-radio-button + label:first-of-type {
+    border-radius: .28571429rem 0 0 .28571429rem;
+}
+
+.stv-radio-button + label:last-of-type {
+    border-radius: 0 .28571429rem .28571429rem 0;
+}
+
+.stv-radio-button:checked + label {
+    background-color: rgba(0,0,0,.05);
+}
+
+/* international support */
+
+/* hide all elements with a language class */
+.en, .jp {
+    display: none;
+} 
+
+/* show those elements that match their language class */
+.en:lang(en), .jp:lang(jp) {
+    display: block;
+}
+
+caption {
+    font-size: 2em;
+}
