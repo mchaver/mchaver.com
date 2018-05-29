@@ -1,4 +1,8 @@
-# Changelog for ghc-generics-intro
+# Changelog for mchaver.com
+
+## 2018-05-29
+
+* Update style.
 
 ## 2018-05-29
 
