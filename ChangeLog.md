@@ -1,5 +1,15 @@
 # Changelog for mchaver.com
 
+## 2018-05-30
+
+* Change date style.
+
+* When max-width is 480px, make style more mobile friendly.
+
+* Adjust headers.
+
+* Adjust font sizes.
+
 ## 2018-05-29
 
 * Update style.

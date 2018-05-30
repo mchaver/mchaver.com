@@ -128,7 +128,7 @@ main = hakyll $ do
             posts <- recentFirst =<< loadAll "posts/*"
             let indexCtx =
                     listField "posts" (postCtxWithTags tags) (return posts) `mappend`
-                    constField "title" "Blog"                `mappend`
+                    constField "title" ""                `mappend`
                     defaultContext
 
             getResourceBody
@@ -147,5 +147,5 @@ main = hakyll $ do
 --------------------------------------------------------------------------------
 postCtx :: Context String
 postCtx =
-    dateField "date" "%B %e, %Y" `mappend`
+    dateField "date" "%0Y-%m-%d" `mappend`
     defaultContext

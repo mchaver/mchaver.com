@@ -1,12 +1,13 @@
-<ul>
+<ol class="posts">
   $for(posts)$
-    <li>
-      <a href="$url$">$title$</a> - $date$
+    <li class="post">
+      <a class="post-link" href="$url$">$title$</a>
       <span>
         $if(tags)$
         $tags$
         $endif$
       </span>
+      <div class="post-date">$date$</div>
     </li>
   $endfor$
-</ul>
+</ol>
