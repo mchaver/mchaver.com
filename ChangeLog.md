@@ -1,5 +1,11 @@
 # Changelog for mchaver.com
 
+## 2018-06-25
+
+* Improve style.
+* Add bs-game-of-life project.
+* Move demos to projects.
+
 ## 2018-05-30
 
 * Change date style.
