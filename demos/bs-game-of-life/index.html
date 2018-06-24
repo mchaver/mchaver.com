@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Conway's Game of Life</title>
+</head>
+
+<body>
+  <canvas id="canvas" width="500" height="500"></canvas>
+  <div>
+    <button id="random-reset-button">Random Reset</button>
+    <button id="step-button">Step</button>
+    <button id="play-button">Pause</button>
+    <span>
+      Speed: 
+    <select id="speed-select">
+      <option value="very-slow">Very Slow</option>
+      <option value="slow">Slow</option>
+      <option value="normal" selected>Normal</option>
+      <option value="fast">Fast</option>
+      <option value="very-fast">Very Fast</option>
+    </select>
+    </span>
+  </div>
+  <div>
+    <p>
+      The rules of Conway's Game of Life.
+    </p>
+    <ul>
+      <li>
+        Any live cell with fewer than two live neighbors dies (under population).
+      </li>
+      <li>
+        Any live cell with two or three live neighbors lives on to the next generation.
+      </li>
+      <li>
+        Any live cell with more than three live neighbors dies (overpopulation).
+      </li>
+      <li>
+        Any dead cell with exactly three live neighbors becomes a live cell (reproduction).
+      </li>
+    </ul>
+  </div>
+  <script src="./main.js"></script>
+</body>
+
+</html>
