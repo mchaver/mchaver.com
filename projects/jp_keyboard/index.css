@@ -89,6 +89,7 @@ table.kanatable > tr > td, table.kanatable > * > tr > td {
 #nav {
     text-align: center;
     position: fixed;
+    left: 0;
     top: 0;
     background-color: white;
     width: 100vw;
