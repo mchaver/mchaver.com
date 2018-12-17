@@ -17,12 +17,12 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Control.Monad (forM)
 import Data.Maybe (catMaybes)
 
-theHakyllWriterOptions :: WriterOptions
-theHakyllWriterOptions = def
-    { -- We want to have hightlighting by default, to be compatible with earlier
-      -- Hakyll releases
-      writerHighlight  = True
-    }
+-- theHakyllWriterOptions :: WriterOptions
+-- theHakyllWriterOptions = def
+--     { -- We want to have hightlighting by default, to be compatible with earlier
+--       -- Hakyll releases
+--       writerHighlight  = True
+--     }
 
 postCtxWithTags :: Tags -> Context String
 -- postCtxWithTags tags = tagsField "tags" tags `mappend` postCtx
@@ -102,7 +102,7 @@ main = hakyll $ do
     
     match "posts/*" $ do
         route $ setExtension "html"
-        compile $ (pandocCompilerWith defaultHakyllReaderOptions theHakyllWriterOptions)
+        compile $ (pandocCompilerWith defaultHakyllReaderOptions def)
             >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithTags tags)
             >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
             >>= relativizeUrls

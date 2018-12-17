@@ -9,7 +9,7 @@ executable site
                   , blaze-html
                   , unordered-containers
                   , data-default
-                  , hakyll == 4.9.*
+                  , hakyll == 4.12.*
                   , pandoc
   ghc-options:      -threaded
   default-language: Haskell2010

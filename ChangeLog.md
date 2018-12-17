@@ -1,5 +1,9 @@
 # Changelog for mchaver.com
 
+## 2018-12-17
+* Update LTS to 12.22 and Hakyll version.
+* post: A Preliminary Attempt at Type-Level FizzBuzz.
+
 ## 2018-06-25
 
 * Improve style.
