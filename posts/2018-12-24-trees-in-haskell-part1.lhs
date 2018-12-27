@@ -1,6 +1,6 @@
 ---
-title: Trees in Haskell Part 1: Binary Trees 
-tags: haskell, trees, binary-tree, 99 problems
+title: Binary Search Tree in Haskell
+tags: haskell, tree
 ---
 
 == Type declaration
@@ -15,13 +15,11 @@ data Tree = Nil | Node Tree Int Tree deriving (Eq, Show)
 
 This is a simple recursive data structure in Haskell. Each `Node` constructor takes a left-side `Tree`, a node value, and a right-side `Tree`, `Nil` ends the recursion. A simple single `Node` tree with a value of `1` is defined as `Node Nil 1 Nil`. A three node tree is `Node (Noe Nil 2 Nil) 1 (Node Nil 3 Nil)`. This tree looks like this:
 
-\begin{code}
-{-
-    1
-   / \
-  2   3
--}
-\end{code}
+```
+  1
+ / \
+2   3
+```
 
 == Traversal functions
 
@@ -118,7 +116,7 @@ contains (Node t1 v t2) x
   | otherwise = contains t2 x
 \end{code}
 
-Delete is the most complicated function so far.
+`delete` is the most complicated function so far. If you delete a node that has only one child, you only need to move the child up to the position of the node deleted. However, if you delete a node that has two children we need to move the minimal value of its right subtree up to the deleted node, the leftmost value, and then get that subtree without its leftmost value.
 
 \begin{code}
 leftMost :: Tree -> Maybe Int
@@ -163,16 +161,9 @@ delete (Node l v r) x
     leftSubtree Nil = Nil
     leftSubtree (Node l _ Nil) = l
     leftSubtree (Node l v r) = Node l v $ leftSubtree r
-
-
 \end{code}
 
-delete (Node (Node Nil 1 Nil) 2 (Node (Node Nil 4 Nil) 3 Nil)) 1
-delete (Node (Node Nil 1 Nil) 2 (Node (Node Nil 4 Nil) 3 Nil)) 2
-delete (Node (Node Nil 1 Nil) 2 (Node (Node Nil 4 Nil) 3 Nil)) 3
-delete (Node (Node Nil 1 Nil) 2 (Node (Node Nil 4 Nil) 3 Nil)) 4
-
-
+If you would like to learn more about binary trees in Haskell. I suggest trying to solve the binary tree problems in [Ninety-Nine Haskell Problems](https://wiki.haskell.org/H-99:_Ninety-Nine_Haskell_Problems).
 
 \ignore{
 \begin{code}
