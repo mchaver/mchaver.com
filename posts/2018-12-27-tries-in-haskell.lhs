@@ -1,9 +1,11 @@
 ---
-title: Trie in Haskell
+title: Tries in Haskell
 tags: haskell, tree
 ---
 
-A trie is a nice tree data structure for storing items we want to frequently look up. It can be used to build a simple autocomplete or spell checking system. It stores sequences with the same prefixes (beginning sequence) together to reduce space and can performs a look up that takes `O(m)` where `m` is the length of the string we search. Here is a simple trie dictionary to give you an idea of the structure (heat, heater, help, helper, hot, hotter, hottest). The `.` in the trie below shows where the words end. While we can see `he` in the structure, it does not have a `.` so it is not part of the dictionary, a lookup of `he` returns `False` and of `hot` returns `True`.
+A trie is a nice tree data structure for storing items we want to frequently look up. It can be used to build a simple autocomplete or spell checking system. It stores sequences with the same prefixes (beginning sequence) together to reduce space and can performs a look up that takes `O(m)` where `m` is the length of the string we search.
+
+Here is a simple trie dictionary to give you an idea of the structure (heat, heater, help, helper, hot, hotter, hottest). The `.` in the trie below shows where the words end. While we can see `he` in the structure, it does not have a `.` so it is not part of the dictionary, a lookup of `he` returns `False` and of `hot` returns `True`.
 
 ```
            h
@@ -23,7 +25,7 @@ r.   r.    r. s
 
 == Type declaration
 
-A trie is a recursive structure. At each level it has a `Bool` for a sequence boundary and stores a `Map` of `Trie`s. Sequence (word) boundaries have the `Bool` set to `True` and the leaf nodes have `True` and an empty map.
+A trie is a recursive structure. At each level it has a `Bool` representing a potential sequence boundary and stores a `Map` of `Trie`s. The sequence boundaries have the `Bool` set to `True` and the leaf nodes have `True` and an empty map.
 
 \ignore{
 \begin{code}
@@ -134,12 +136,12 @@ This function gave me the most trouble because you need to keep track of which s
   |  |
   o  a
   |  |
-  o  d
+  o  d.
   |
-  d
+  d.
 ```
 
-The main idea is to start from the top of the trie and follow the sequence all the way down, if certain conditions are met, then we can delete the sequence, if not, we continue through the subsequences checking if we can delete anything. It took a bit of trial, error and unit testing to write these functions so I will not claim that they are correct yet. 
+The main idea is to start from the top of the trie and follow the sequence all the way down, if certain conditions are met, then we can delete the sequence, if not, we continue through the subsequences checking if we can delete anything. In case we want to delete a boundary that is not at a leaf, we the list is empty, we check if there are any children, if there are we set it to `False`. It took a bit of trial, error and unit testing to write these functions so I will not claim that they are correct yet. 
 
 \begin{code}
 lengthOfChildNodes :: Trie a -> Int
