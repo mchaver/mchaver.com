@@ -1,5 +1,9 @@
 # Changelog for mchaver.com
 
+## 2018-12-29
+* post: Improved Type-Level FizzBuzz.
+* update Trie in Haskell, details about delete function improvements.
+
 ## 2018-12-27
 * post: Binary Search Tree in Haskell, Trie in Haskell.
 

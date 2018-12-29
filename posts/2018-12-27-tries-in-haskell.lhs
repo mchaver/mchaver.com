@@ -141,7 +141,7 @@ This function gave me the most trouble because you need to keep track of which s
   d.
 ```
 
-The main idea is to start from the top of the trie and follow the sequence all the way down, if certain conditions are met, then we can delete the sequence, if not, we continue through the subsequences checking if we can delete anything. In case we want to delete a boundary that is not at a leaf, we the list is empty, we check if there are any children, if there are we set it to `False`. It took a bit of trial, error and unit testing to write these functions so I will not claim that they are correct yet. 
+The main idea is to start from the top of the trie and follow the sequence all the way down, if certain conditions are met, then we can delete the sequence, if not, we continue through the subsequences checking if we can delete anything. In case we want to delete a boundary that is not at a leaf, we the list is empty, we check if there are any children, if there are we set it to `False`. It took a bit of trial, error and unit testing to write these functions so I will not claim that they are correct yet.
 
 \begin{code}
 lengthOfChildNodes :: Trie a -> Int
@@ -153,7 +153,6 @@ deletable (x : xs) (Trie end nodes) =
   (length xs == 0 || not end) &&
   maybe False (\t -> deletable xs t && (length xs == 0 || (lengthOfChildNodes t) < 1)) (Map.lookup x nodes)
 
--- ignore non-member functions
 delete :: Ord a => [a] -> Trie a -> Trie a
 delete as t = if member as t then delete' as t else t
   where
@@ -163,6 +162,8 @@ delete as t = if member as t then delete' as t else t
         else Trie end (Map.alter (Just . delete' xs . fromMaybe empty) x nodes)
     delete' [] t@(Trie end nodes) = if Map.size nodes > 0 then Trie False nodes else t
 \end{code}
+
+The `delete` function is slow because it repeatedly traces over the same path as it gets smaller until it is deleted. If you need to perform delete a lot on a trie, one idea is to keep track of what paths are deletable with and extra boolean flag on each level. You would need to update the `insert` function to support this.
 
 == Testing
 
