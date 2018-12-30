@@ -1,5 +1,8 @@
 # Changelog for mchaver.com
 
+## 2018-12-30
+* post: Maximum subarray in Haskell.
+
 ## 2018-12-29
 * post: Improved Type-Level FizzBuzz.
 * update Trie in Haskell, details about delete function improvements.
