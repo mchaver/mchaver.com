@@ -1,5 +1,8 @@
 # Changelog for mchaver.com
 
+## 2018-12-31
+* post: Change Making Problem in Haskell.
+
 ## 2018-12-30
 * post: Maximum subarray in Haskell.
 
