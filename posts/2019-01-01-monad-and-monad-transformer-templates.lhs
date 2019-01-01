@@ -70,7 +70,7 @@ These are my one sentence motivations (not definitions) for using these type cla
 
 
 Let's define our own type and instances for these three type classes. I use the naming scheme from OCaml `Option` so we can compile
-this and avoid compile errors regarding `Maybe`.
+and avoid name clashes with `Maybe`.
 
 \begin{code}
 import Control.Applicative (liftA2, Alternative(..))
