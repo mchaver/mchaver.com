@@ -1,5 +1,8 @@
 # Changelog for mchaver.com
 
+## 2018-01-01
+* post: Monad and Monad Transformer Templates.
+
 ## 2018-12-31
 * post: Change Making Problem in Haskell.
 
