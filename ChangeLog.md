@@ -1,5 +1,10 @@
 # Changelog for mchaver.com
 
+## 2026-04-15
+* Remove stack.
+* Use latest GHC.
+* Upgrade dependencies.
+
 ## 2018-01-01
 * post: Monad and Monad Transformer Templates.
 

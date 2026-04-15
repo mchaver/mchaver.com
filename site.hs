@@ -1,13 +1,7 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
 import           Data.Default (def)
-import           Data.Monoid (mappend)
 import           Hakyll
-
-import           Text.Pandoc
-
-import qualified Data.HashMap.Lazy as M
-import           Data.List                       (intersperse)
 
 import           Text.Blaze.Html                 (toHtml, toValue, (!))
 import Text.Blaze.Html.Renderer.String (renderHtml)
@@ -16,13 +10,6 @@ import qualified Text.Blaze.Html5.Attributes as A
 
 import Control.Monad (forM)
 import Data.Maybe (catMaybes)
-
--- theHakyllWriterOptions :: WriterOptions
--- theHakyllWriterOptions = def
---     { -- We want to have hightlighting by default, to be compatible with earlier
---       -- Hakyll releases
---       writerHighlight  = True
---     }
 
 postCtxWithTags :: Tags -> Context String
 -- postCtxWithTags tags = tagsField "tags" tags `mappend` postCtx
@@ -55,18 +42,6 @@ tagsFieldWith' getTags' renderLink cat key tags = field key $ \item -> do
 
     return $ renderHtml $ cat $ catMaybes $ links
 
-{-
-listContextWith :: Context String -> String -> Context a
-listContextWith ctx s = listField s ctx $ do
-    identifier <- getUnderlying
-    metadata <- getMetadata identifier
-    let metas = maybe [] (map trim . splitAll ",") $ M.lookup s metadata
-    return $ map (\x -> Item (fromFilePath x) x) metas
--}
-{-
-listField "things" (field "thing" (return . itemBody))
--- >    (sequence [makeItem "fruits", makeItem "vegetables"])
--}
 --------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
@@ -104,6 +79,7 @@ main = hakyll $ do
         route $ setExtension "html"
         compile $ (pandocCompilerWith defaultHakyllReaderOptions def)
             >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithTags tags)
+            >>= saveSnapshot "content"
             >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
             >>= relativizeUrls
 
@@ -136,6 +112,13 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" indexCtx
                 >>= relativizeUrls
 
+    create ["rss.xml"] $ do
+        route idRoute
+        compile $ do
+            posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/*" "content"
+            let feedCtx = postCtx `mappend` bodyField "description"
+            renderRss feedConfig feedCtx posts
+
     match "templates/*" $ compile templateBodyCompiler
 
     -- loads the react project directly without changing anything
@@ -143,6 +126,16 @@ main = hakyll $ do
       route idRoute
       compile $ getResourceLBS
 
+
+--------------------------------------------------------------------------------
+feedConfig :: FeedConfiguration
+feedConfig = FeedConfiguration
+    { feedTitle       = "mchaver.com"
+    , feedDescription = "Posts from mchaver.com"
+    , feedAuthorName  = "James M.C. Haver II"
+    , feedAuthorEmail = "mchaver@gmail.com"
+    , feedRoot        = "https://mchaver.com"
+    }
 
 --------------------------------------------------------------------------------
 postCtx :: Context String
