@@ -7,6 +7,7 @@
 .DS_Store
 TAGS
 dist
+dist-newstyle
 tags
 cabal.sandbox.config
 .cabal-sandbox/
