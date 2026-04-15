@@ -79,6 +79,7 @@ main = hakyll $ do
         route $ setExtension "html"
         compile $ (pandocCompilerWith defaultHakyllReaderOptions def)
             >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithTags tags)
+            >>= saveSnapshot "content"
             >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
             >>= relativizeUrls
 
@@ -111,6 +112,13 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" indexCtx
                 >>= relativizeUrls
 
+    create ["rss.xml"] $ do
+        route idRoute
+        compile $ do
+            posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/*" "content"
+            let feedCtx = postCtx `mappend` bodyField "description"
+            renderRss feedConfig feedCtx posts
+
     match "templates/*" $ compile templateBodyCompiler
 
     -- loads the react project directly without changing anything
@@ -118,6 +126,16 @@ main = hakyll $ do
       route idRoute
       compile $ getResourceLBS
 
+
+--------------------------------------------------------------------------------
+feedConfig :: FeedConfiguration
+feedConfig = FeedConfiguration
+    { feedTitle       = "mchaver.com"
+    , feedDescription = "Posts from mchaver.com"
+    , feedAuthorName  = "James M.C. Haver II"
+    , feedAuthorEmail = "mchaver@gmail.com"
+    , feedRoot        = "https://mchaver.com"
+    }
 
 --------------------------------------------------------------------------------
 postCtx :: Context String
