@@ -1,13 +1,11 @@
 # mchaver.com
 
 ```
-stack install hakyll
-hakyll-init my-site
-stack init
-stack build
-stack exec site build
-stack exec site watch
-stack exec site clean
+cabal update
+cabal build
+cabal run site -- build
+cabal run site -- watch
+cabal run site -- clean
 ```
 
 ## to do 
