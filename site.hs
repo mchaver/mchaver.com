@@ -13,7 +13,7 @@ import Data.Aeson (Value, encode, object, (.=))
 import qualified Data.ByteString.Lazy as BL
 import Data.Char (toLower)
 import Data.Function (on)
-import Data.List (intersect, sort, sortBy)
+import Data.List (intersect, intersperse, sort, sortBy)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Ord (Down (..), comparing)
 import qualified Data.Text as T
@@ -102,6 +102,48 @@ seriesItemCtx =
     field "url"     (\i -> maybe "#" toUrl <$> getRoute (fst (itemBody i))) `mappend`
     field "title"   (\i -> getMetadataField' (fst (itemBody i)) "title")   `mappend`
     boolField "current" (snd . itemBody)
+
+--------------------------------------------------------------------------------
+-- Archive helpers.
+
+-- Render tags as plain comma-separated text links (class "meta-tag"), i.e.
+-- without the boxed-pill styling of the normal tag field.
+plainTagRenderLink :: String -> Maybe FilePath -> Maybe H.Html
+plainTagRenderLink _   Nothing   = Nothing
+plainTagRenderLink tag (Just fp) =
+    Just $ H.a ! A.class_ "meta-tag" ! A.href (toValue (toUrl fp)) $ toHtml tag
+
+plainTags :: String -> Tags -> Context a
+plainTags key tags =
+    tagsFieldWith getTags plainTagRenderLink
+        (mconcat . intersperse (toHtml (", " :: String))) key tags
+
+-- A post's effective "last updated" date: the `updated` field if present,
+-- otherwise the original date parsed from its date-prefixed filename.
+lastUpdatedOf :: Item a -> Compiler String
+lastUpdatedOf item = do
+    let ident = itemIdentifier item
+        date  = take 10 (takeFileName (toFilePath ident))
+    fromMaybe date <$> getMetadataField ident "updated"
+
+-- Order posts by last-updated, most recent first.
+byLastUpdated :: [Item a] -> Compiler [Item a]
+byLastUpdated items = do
+    keyed <- forM items $ \i -> do
+        d <- lastUpdatedOf i
+        pure (d, i)
+    pure (map snd (sortBy (comparing (Down . fst)) keyed))
+
+-- Context for an archive row: title/url/kind (from defaultContext), plus plain
+-- tags, a normalized publication state (default "complete"), and last-updated.
+archivePostCtx :: Tags -> Context String
+archivePostCtx tags =
+    field "lastdate" lastUpdatedOf                                          `mappend`
+    field "state"
+        (\i -> fromMaybe "complete" <$> getMetadataField (itemIdentifier i) "state")
+                                                                            `mappend`
+    plainTags "tags" tags                                                   `mappend`
+    defaultContext
 
 --------------------------------------------------------------------------------
 -- Faceted homepage helpers.
@@ -258,10 +300,10 @@ main = hakyll $ do
     create ["archive.html"] $ do
         route idRoute
         compile $ do
-            posts <- recentFirst =<< loadAll "posts/*"
+            posts <- byLastUpdated =<< loadAll "posts/*"
             let archiveCtx =
-                    listField "posts" (postCtxWithTags tags) (return posts) `mappend`
-                    constField "title" "Archives"            `mappend`
+                    listField "posts" (archivePostCtx tags) (return posts) `mappend`
+                    constField "title" "Archive"             `mappend`
                     defaultContext
 
             makeItem ""

@@ -337,6 +337,73 @@ div.post-date {
     font-size: 0.72rem;
 }
 
+/* --- archive: two rows per entry, plain-text metadata --- */
+ol.posts.archive {
+    padding: 0;
+    list-style: none;
+}
+
+li.archive-row {
+    padding: 0.55em 0;
+    border-bottom: 1px solid var(--border);
+}
+
+a.archive-title {
+    font-weight: 600;
+}
+
+.archive-meta {
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.2em;
+    line-height: 1.5;
+}
+
+/* Separate the metadata pieces with a middot (skipping the first). */
+.archive-meta > span + span::before {
+    content: "·";
+    margin: 0 0.45em;
+    color: var(--faint);
+}
+
+.meta-type {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.type-tutorial  { color: #2a5d9c; }
+.type-reference { color: #2e6b32; }
+.type-note      { color: #8a6320; }
+
+.meta-state { font-style: italic; }
+
+.state-complete   { color: #2e6b32; }
+.state-developing { color: #b06000; }
+.state-draft      { color: #8a8a8a; }
+
+/* The plain-tags field renders an empty span when a post has no tags; hide it
+   so it doesn't produce a dangling separator. */
+.meta-tags:empty { display: none; }
+
+.meta-tags a.meta-tag {
+    color: var(--muted);
+    text-decoration: none;
+}
+
+.meta-tags a.meta-tag:hover {
+    text-decoration: underline;
+}
+
+.meta-date { color: var(--faint); }
+
+[data-theme="dark"] .type-tutorial    { color: #8fb8e8; }
+[data-theme="dark"] .type-reference   { color: #86c98f; }
+[data-theme="dark"] .type-note        { color: #d9b066; }
+[data-theme="dark"] .state-complete   { color: #86c98f; }
+[data-theme="dark"] .state-developing { color: #e0a060; }
+
 /* --- faceted homepage --- */
 section.facet {
     margin: 1.5em 0;
