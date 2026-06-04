@@ -1,5 +1,6 @@
 ---
 title: Attoparsec Tutorial Part 3 - Parse Data in Variable Order
+kind: tutorial
 tags: haskell, attoparsec
 series: Attoparsec Tutorial
 ---

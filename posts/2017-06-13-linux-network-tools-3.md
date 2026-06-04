@@ -1,5 +1,6 @@
 ---
 title: Linux Network Tools - netstat
+kind: tutorial
 tags: linux, networking
 series: Linux Network Tools
 ---

@@ -1,5 +1,6 @@
 ---
 title: Haskell Network Programming - UDP Client and Server
+kind: tutorial
 tags: haskell, networking
 series: Haskell Network Programming
 ---

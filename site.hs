@@ -181,11 +181,16 @@ main = hakyll $ do
     match "posts/*" $ do
         route $ setExtension "html"
         let postCtx' = postCtxWithTags tags `mappend` relatedField `mappend` seriesField
-        compile $ pandocCompilerWith defaultHakyllReaderOptions tocWriterOptions
-            >>= loadAndApplyTemplate "templates/post.html"    postCtx'
-            >>= saveSnapshot "content"
-            >>= loadAndApplyTemplate "templates/default.html" postCtx'
-            >>= relativizeUrls
+        compile $ do
+            -- Clean article body for the RSS feed: no table of contents and no
+            -- page chrome (series nav, related posts, date, tags).
+            _ <- pandocCompilerWith defaultHakyllReaderOptions defaultHakyllWriterOptions
+                >>= saveSnapshot "content"
+            -- Full page: body carries a table of contents, then the post chrome.
+            pandocCompilerWith defaultHakyllReaderOptions tocWriterOptions
+                >>= loadAndApplyTemplate "templates/post.html"    postCtx'
+                >>= loadAndApplyTemplate "templates/default.html" postCtx'
+                >>= relativizeUrls
 
     create ["archive.html"] $ do
         route idRoute

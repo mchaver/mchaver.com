@@ -1,5 +1,6 @@
 ---
 title: Attoparsec Tutorial Part 2 - Parse and Return Values
+kind: tutorial
 tags: haskell, attoparsec
 series: Attoparsec Tutorial
 ---

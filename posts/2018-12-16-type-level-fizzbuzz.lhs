@@ -1,5 +1,6 @@
 ---
 title: A Preliminary Attempt at Type-Level FizzBuzz
+kind: note
 tags: haskell, type-level
 ---
 

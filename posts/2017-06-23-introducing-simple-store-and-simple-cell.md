@@ -1,5 +1,6 @@
 ---
 title: Introducing simple-store and simple-cell
+kind: note
 tags: haskell, db
 ---
 

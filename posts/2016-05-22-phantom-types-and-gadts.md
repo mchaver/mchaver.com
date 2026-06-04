@@ -1,5 +1,6 @@
 ---
 title: Phantom Types and Generalized Algebraic Data Types
+kind: reference
 tags: haskell
 ---
 
@@ -28,6 +29,10 @@ centimetersToInches (Length cm) = Length (cm / 2.54)
 ```
 
 ## Data Kinds
+
+`DataKinds` promotes a data type up to the kind level so its constructors can be
+used as types. For more details, see
+[Kinds in Haskell](/posts/2017-06-19-kinds-in-haskell.html).
 
 ```haskell
 {-# LANGUAGE DataKinds #-}

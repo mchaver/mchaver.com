@@ -1,33 +1,75 @@
-/* palette: */
-/* #2f2f2f - text */
-/* #369392 - links */
-/* #4f86c6 - ?? */
-/* #4fb0c6 - highlights */
-/* #ffffff - background */
+/* ----------------------------------------------------------------------------
+   Theme variables. Light is the default; [data-theme="dark"] (set on <html> by
+   the inline script in default.html) overrides them. Using an attribute rather
+   than @media keeps every dark rule at higher specificity than syntax.css.
+---------------------------------------------------------------------------- */
+:root {
+    --bg:          #ffffff;
+    --fg:          #2f2f2f;
+    --muted:       #5f5f5f;
+    --faint:       #888888;
+    --link:        #379392;
+    --link-hover:  #267371;
+    --border:      #e2e2e2;
+    --rule:        #cfcfcf;
+    --card-bg:     #fafafa;
+    --code-bg:     #f2f2f2;
+    --code-border: #dddddd;
+    --accent:      #379392;
+    --tag-bg:      #fffcd7;
+    --tag-border:  #d5d458;
+    --tag-fg:      #555555;
+}
+
+[data-theme="dark"] {
+    --bg:          #1a1a1a;
+    --fg:          #dcd8d2;
+    --muted:       #a6a29c;
+    --faint:       #7d7d7d;
+    --link:        #5fbecf;
+    --link-hover:  #8fd4e1;
+    --border:      #333333;
+    --rule:        #3a3a3a;
+    --card-bg:     #232323;
+    --code-bg:     #242424;
+    --code-border: #3a3a3a;
+    --accent:      #4fb0c6;
+    --tag-bg:      #3a3722;
+    --tag-border:  #5e5a2e;
+    --tag-fg:      #c9c79a;
+}
 
 html {
-    font-size: 100%
-    background-color: #ffffff;
-    color: #2f2f2f;
+    font-size: 18px;
+    background-color: var(--bg);
+    color: var(--fg);
 }
 
 body {
-    font-family: "Source Sans Pro", sans-serif;
-    margin-bottom: 0;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 0;
-    line-height: 1.5;
-    font-size: 1em;
+    font-family: "Source Sans Pro", -apple-system, BlinkMacSystemFont,
+                 "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0 auto;
+    line-height: 1.65;
+    font-size: 1rem;
+    background-color: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
 }
 
 a {
-    color: #379392;
+    color: var(--link);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+a:hover {
+    color: var(--link-hover);
 }
 
 a.post-link {
-    color: #379392;
-    font-weight: bold;
+    color: var(--link);
+    font-weight: 600;
     text-decoration: none;
 }
 
@@ -35,24 +77,29 @@ a.post-link:hover {
     text-decoration: underline;
 }
 
-
+/* --- header / nav --- */
 #header {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
     font-weight: bold;
-    font-size: 1em;
+    font-size: 1rem;
     padding: 5px 10px;
     margin-top: 1em;
-    margin-bottom: 0.5em;
-    line-height: 18px;
+    margin-bottom: 1em;
+    line-height: 1.4;
 }
 
 a#main-link {
-    color: #333;
+    color: var(--fg);
     text-decoration: none;
     padding: 0;
+    font-size: 1.15rem;
 }
 
 #header span.headerlinks {
     margin-left: 1em;
+    font-weight: normal;
 }
 
 #header span a {
@@ -60,82 +107,133 @@ a#main-link {
     padding: 0 0.4em 0.4em;
 }
 
+#theme-toggle {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.05rem;
+    line-height: 1;
+    padding: 0.1em 0.3em;
+    border-radius: 0.3em;
+}
+
+#theme-toggle:hover {
+    background: var(--card-bg);
+}
+
 div#footer {
-    color: #555;
-    font-size: 12px;
+    color: var(--faint);
+    font-size: 0.7rem;
     margin-top: 30px;
     padding: 12px 0px 12px 0px;
     text-align: right;
 }
 
+/* --- headings --- */
+h1, h2, h3, h4 {
+    line-height: 1.25;
+    margin-top: 1.6em;
+    margin-bottom: 0.5em;
+}
+
 h1 {
-    font-size: 1.5em;
+    font-size: 1.7rem;
+    margin-top: 0.6em;
 }
 
 h2 {
-    font-size: 20px;
+    font-size: 1.3rem;
+}
+
+h3 {
+    font-size: 1.1rem;
 }
 
 div.info {
-    color: #555;
-    font-size: 14px;
+    color: var(--muted);
+    font-size: 0.8rem;
     font-style: italic;
 }
 
+/* --- code --- */
 pre {
-    background: #f2f2f2;
-    border: 1px solid #dddddd;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
     border-radius: 0.5em;
     padding: 1em;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
 }
 
 code {
-    background: #f2f2f2;
-    border: 1px solid #dddddd;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
     border-radius: 0.25em;
     padding-left: 0.2em;
     padding-right: 0.2em;
+    font-size: 0.88em;
     white-space: pre-wrap;
 }
 
 pre > code {
-  padding-left: 0;
-  border: none;
-  border-radius: none;
+    padding-left: 0;
+    border: none;
+    border-radius: 0;
+    font-size: inherit;
+    background: none;
 }
 
+/* --- layout --- */
 div#wrapper {
     margin-left: auto;
     margin-right: auto;
     padding-bottom: 2em;
-    max-width: 900px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    max-width: 760px;
 }
 
 section {
-    width: 96%;
+    width: 100%;
     margin-left: auto;
     margin-right: auto;
 }
 
 article {
-    border-bottom: 1px solid #2f2f2f;
+    border-bottom: 1px solid var(--rule);
     word-wrap: break-word;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+blockquote {
+    border-left: 3px solid var(--rule);
+    margin-left: 0;
+    padding-left: 1em;
+    color: var(--muted);
 }
 
 ul li {
     margin-bottom: 2px;
 }
 
+/* --- tags --- */
 .tags {
     margin-right: 0.25em;
 }
 
 .tag {
-    background-color: #fffcd7;
-    border: 1px solid #d5d458;
+    background-color: var(--tag-bg);
+    border: 1px solid var(--tag-border);
     border-radius: 5px;
-    color: #555;
-    font-size: 0.65em;
+    color: var(--tag-fg);
+    font-size: 0.62rem;
     margin-left: 0.5em;
     padding: 0.1em 0.4em 0.1em 0.4em;
     text-decoration: none;
@@ -143,6 +241,31 @@ ul li {
     cursor: pointer;
 }
 
+/* --- content-type badges --- */
+.kind {
+    display: inline-block;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    padding: 0.12em 0.55em;
+    border-radius: 0.9em;
+    vertical-align: middle;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.kind-tutorial  { background: #eaf3ff; color: #2a5d9c; border-color: #cfe2fb; }
+.kind-reference { background: #eaf6ec; color: #2e6b32; border-color: #cfe7d0; }
+.kind-note      { background: #fff5e0; color: #8a6320; border-color: #f0dcab; }
+.kind-til       { background: #f4ecfb; color: #6b3a9c; border-color: #e0caf0; }
+
+[data-theme="dark"] .kind-tutorial  { background: #16314e; color: #8fc0f2; border-color: #234970; }
+[data-theme="dark"] .kind-reference { background: #163518; color: #8fd49a; border-color: #265c2c; }
+[data-theme="dark"] .kind-note      { background: #3a2f15; color: #e0bd72; border-color: #5e4c22; }
+[data-theme="dark"] .kind-til       { background: #2c1a3e; color: #c79ae6; border-color: #4a2f66; }
+
+/* --- post list --- */
 ol.posts {
     padding: 0;
     list-style: none;
@@ -154,8 +277,8 @@ ol.posts li:first-child.post {
 }
 
 ol.posts li.post {
-    padding-top: 0.25em;
-    padding-bottom: 0.25em;
+    padding-top: 0.35em;
+    padding-bottom: 0.35em;
 }
 
 li.post {
@@ -164,23 +287,23 @@ li.post {
 }
 
 div.post-date {
-    color: #888;
-    font-size: 0.75em;
+    color: var(--faint);
+    font-size: 0.72rem;
 }
 
 /* --- table of contents (auto-generated by pandoc) --- */
 nav.toc {
-    background: #fafafa;
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
     border-radius: 0.5em;
     padding: 0.75em 1em;
     margin: 1em 0 1.5em 0;
-    font-size: 0.9em;
+    font-size: 0.85rem;
 }
 
 nav.toc .toc-title {
     font-weight: bold;
-    color: #555;
+    color: var(--muted);
     margin-bottom: 0.25em;
 }
 
@@ -195,18 +318,18 @@ nav.toc > ul {
 
 /* --- series navigation --- */
 nav.series-nav {
-    background: #f7fbfb;
-    border: 1px solid #cfe7e6;
-    border-left: 3px solid #379392;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
     border-radius: 0.4em;
     padding: 0.6em 1em;
     margin-bottom: 1.25em;
-    font-size: 0.9em;
+    font-size: 0.85rem;
 }
 
 nav.series-nav .series-label {
     font-weight: bold;
-    color: #555;
+    color: var(--muted);
     margin-bottom: 0.3em;
 }
 
@@ -217,20 +340,20 @@ nav.series-nav ol {
 
 nav.series-nav .current {
     font-weight: bold;
-    color: #2f2f2f;
+    color: var(--fg);
 }
 
 /* --- related posts --- */
 aside.related {
     margin-top: 2em;
     padding-top: 1em;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid var(--border);
 }
 
 aside.related h2 {
-    font-size: 1em;
-    color: #555;
-    margin-bottom: 0.4em;
+    font-size: 0.95rem;
+    color: var(--muted);
+    margin: 0 0 0.4em 0;
 }
 
 aside.related ul {
@@ -244,14 +367,15 @@ section.topic {
 }
 
 section.topic h2 {
-    font-size: 1.1em;
-    border-bottom: 1px solid #eee;
+    font-size: 1.15rem;
+    border-bottom: 1px solid var(--border);
     padding-bottom: 0.2em;
+    margin-top: 1em;
 }
 
 section.topic .topic-count {
-    color: #aaa;
-    font-size: 0.7em;
+    color: var(--faint);
+    font-size: 0.7rem;
     font-weight: normal;
 }
 
@@ -260,33 +384,54 @@ ul.topic-posts {
     padding-left: 1.25em;
 }
 
-@media screen and (max-width: 403px) {
-
+/* --- dark-mode code blocks: override syntax.css's light defaults --- */
+[data-theme="dark"] pre,
+[data-theme="dark"] code,
+[data-theme="dark"] .sourceCode {
+    background: var(--code-bg);
 }
 
+[data-theme="dark"] pre,
+[data-theme="dark"] code {
+    border-color: var(--code-border);
+}
+
+/* syntax.css highlights via `pre.sourceCode span.*` with colors tuned for a
+   light background; re-tune the common tokens for dark mode (higher specificity
+   so these win without touching syntax.css). */
+[data-theme="dark"] pre.sourceCode span.kw { color: #6cb6ff; }
+[data-theme="dark"] pre.sourceCode span.dt { color: #5fd0c5; }
+[data-theme="dark"] pre.sourceCode span.ot { color: #b5cea8; }
+[data-theme="dark"] pre.sourceCode span.fu { color: #dcdcaa; }
+[data-theme="dark"] pre.sourceCode span.st { color: #e0a07a; }
+[data-theme="dark"] pre.sourceCode span.dv,
+[data-theme="dark"] pre.sourceCode span.bn,
+[data-theme="dark"] pre.sourceCode span.fl { color: #b5cea8; }
+[data-theme="dark"] pre.sourceCode span.ch { color: #e0a07a; }
+[data-theme="dark"] pre.sourceCode span.co { color: #7f9f7f; }
+[data-theme="dark"] pre.sourceCode span.op { color: #cccccc; }
+
 @media only screen and (max-width: 480px) {
-    .large {
-        font-size: 2em;
+    html {
+        font-size: 17px;
     }
 
     div#header {
-        margin: 0;
+        margin: 0 0 0.5em 0;
         padding: 8px 5px;
-        background-color: #eee;
-        border-bottom: 1px solid #ccc;
+        background-color: var(--card-bg);
+        border-bottom: 1px solid var(--border);
     }
 
     ol.posts li.post {
         padding-top: 0.5em;
         padding-bottom: 0.75em;
-        border-bottom: 1px solid #e0e0e0;
+        border-bottom: 1px solid var(--border);
         display: table;
-        font-size: 1.15em;
     }
 
-
     div.post-date {
-        color: #888;
-        font-size: 1em;
+        color: var(--faint);
+        font-size: 0.8rem;
     }
 }

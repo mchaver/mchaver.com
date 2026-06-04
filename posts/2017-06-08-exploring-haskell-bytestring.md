@@ -1,5 +1,6 @@
 ---
 title: Exploring Haskell - ByteString (Strict)
+kind: reference
 tags: haskell
 ---
 

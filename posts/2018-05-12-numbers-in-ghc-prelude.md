@@ -1,5 +1,6 @@
 ---
 title: Numbers in GHC Prelude
+kind: reference
 tags: haskell, numeric
 ---
 

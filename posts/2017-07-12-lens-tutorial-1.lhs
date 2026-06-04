@@ -1,5 +1,6 @@
 ---
 title: Lens Tutorial - SimpleLens
+kind: tutorial
 tags: haskell, lens
 ---
 

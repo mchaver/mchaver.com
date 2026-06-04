@@ -1,5 +1,6 @@
 ---
 title: Orphan Instances
+kind: reference
 tags: haskell
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: Simple SQLite queries with sqlite-simple
+kind: tutorial
 tags: haskell, SQL
 ---
 

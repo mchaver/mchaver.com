@@ -1,11 +1,15 @@
 ---
 title: Type-Level Heterogeneous List
+kind: note
 tags: haskell, type-level
 ---
 
-HList is a well designed package for type level heterogeneous lists. We will 
-take a look at the main declaration to get more familiar with type level 
-programmin in Haskell.
+HList is a well designed package for type level heterogeneous lists. We will
+take a look at the main declaration to get more familiar with type level
+programmin in Haskell. If you are new to kinds in Haskell, start with
+[Kinds in Haskell](/posts/2017-06-19-kinds-in-haskell.html) and
+[An Introduction to Type Families](/posts/2017-06-21-type-families.html). Then
+[Type-Level List Search](/posts/2017-06-22-type-level-list-search.html).
 
 Promote data types to to kind level. We want to use `[]` at the type level to 
 operate over a list of types that we use to calculate the type signature.

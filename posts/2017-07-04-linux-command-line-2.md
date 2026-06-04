@@ -1,5 +1,6 @@
 ---
 title: Linux Command Line - Disk Usage and Disk Filesystem
+kind: tutorial
 tags: linux
 series: Linux Command Line
 ---

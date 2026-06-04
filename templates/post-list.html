@@ -2,6 +2,7 @@
   $for(posts)$
     <li class="post">
       <a class="post-link" href="$url$">$title$</a>
+      $if(kind)$<span class="kind kind-$kind$">$kind$</span>$endif$
       <span>
         $if(tags)$
         $tags$

@@ -1,5 +1,6 @@
 ---
 title: Maximum Subarray in Haskell
+kind: note
 tags: haskell, dynamic programming
 ---
 

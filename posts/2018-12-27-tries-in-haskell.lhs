@@ -1,5 +1,6 @@
 ---
 title: Tries in Haskell
+kind: note
 tags: haskell, tree
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: Haskell async and cancel
+kind: note
 tags: haskell, async
 ---
 
