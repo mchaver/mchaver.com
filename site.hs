@@ -8,8 +8,16 @@ import Text.Blaze.Html.Renderer.String (renderHtml)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
-import Control.Monad (forM)
+import Control.Monad (forM, filterM)
+import Data.Char (toLower)
+import Data.Function (on)
+import Data.List (intersect, sort, sortBy)
 import Data.Maybe (catMaybes)
+import Data.Ord (Down (..), comparing)
+import qualified Data.Text as T
+
+import Text.Pandoc.Options (WriterOptions (..))
+import Text.Pandoc.Templates (compileTemplate)
 
 postCtxWithTags :: Tags -> Context String
 -- postCtxWithTags tags = tagsField "tags" tags `mappend` postCtx
@@ -43,8 +51,89 @@ tagsFieldWith' getTags' renderLink cat key tags = field key $ \item -> do
     return $ renderHtml $ cat $ catMaybes $ links
 
 --------------------------------------------------------------------------------
+-- Related posts: other posts ranked by how many tags they share with this one,
+-- most overlap first, ties broken by recency. Used for the "Related posts"
+-- block at the foot of each post.
+relatedIdentsOf :: Item a -> Compiler [Identifier]
+relatedIdentsOf item = do
+    let ident = itemIdentifier item
+    myTags <- getTags ident
+    others <- filter (/= ident) <$> getMatches "posts/*"
+    scored <- forM others $ \i -> do
+        ts <- getTags i
+        pure (length (myTags `intersect` ts), i)
+    pure [ i
+         | (n, i) <- sortBy (comparing (Down . fst) <> comparing (Down . snd)) scored
+         , n > 0 ]
+
+relatedField :: Context String
+relatedField =
+    listFieldWith "related" linkedPostCtx
+        (\item -> take 3 <$> relatedIdentsOf item >>= mapM makeItem)
+    `mappend`
+    boolFieldM "hasRelated" (fmap (not . null) . relatedIdentsOf)
+
+-- A minimal context for a post referenced only by its 'Identifier' (title + url).
+linkedPostCtx :: Context Identifier
+linkedPostCtx =
+    field "url"   (\i -> maybe "#" toUrl <$> getRoute (itemBody i)) `mappend`
+    field "title" (\i -> getMetadataField' (itemBody i) "title")
+
+--------------------------------------------------------------------------------
+-- Series: every post sharing this post's @series:@ metadata, in chronological
+-- order (filenames are date-prefixed, so a plain sort is chronological). The
+-- current post is flagged so the template can render it un-linked.
+seriesField :: Context String
+seriesField = listFieldWith "seriesPosts" seriesItemCtx $ \item -> do
+    let ident = itemIdentifier item
+    mSeries <- getMetadataField ident "series"
+    case mSeries of
+        Nothing -> pure []
+        Just s  -> do
+            ids  <- getMatches "posts/*"
+            same <- filterM (\i -> (== Just s) <$> getMetadataField i "series") ids
+            mapM (\i -> makeItem (i, i == ident)) (sort same)
+
+seriesItemCtx :: Context (Identifier, Bool)
+seriesItemCtx =
+    field "url"     (\i -> maybe "#" toUrl <$> getRoute (fst (itemBody i))) `mappend`
+    field "title"   (\i -> getMetadataField' (fst (itemBody i)) "title")   `mappend`
+    boolField "current" (snd . itemBody)
+
+--------------------------------------------------------------------------------
+-- Topics page: one section per tag, each listing its posts (newest first).
+topicCtx :: Tags -> Context (String, [Identifier])
+topicCtx tags =
+    field "topic"    (pure . fst . itemBody)                                  `mappend`
+    field "count"    (pure . show . length . snd . itemBody)                  `mappend`
+    field "topicUrl" (\i -> maybe "#" toUrl <$> getRoute (tagsMakeId tags (fst (itemBody i)))) `mappend`
+    listFieldWith "posts" linkedPostCtx
+        (\i -> mapM makeItem (sortBy (comparing Down) (snd (itemBody i))))
+
+--------------------------------------------------------------------------------
+-- | Pandoc writer template: prepend an auto-generated table of contents (only
+-- when the document actually has headings) to the rendered body.
+tocTemplateSource :: T.Text
+tocTemplateSource = T.unlines
+    [ "$if(toc)$"
+    , "<nav class=\"toc\"><div class=\"toc-title\">Contents</div>$table-of-contents$</nav>"
+    , "$endif$"
+    , "$body$"
+    ]
+
+--------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
+    -- Pandoc writer template that prepends an auto-generated table of contents
+    -- (when the document has headings) to the rendered body.
+    tocTemplate <- preprocess (either error id <$> compileTemplate "" tocTemplateSource)
+
+    let tocWriterOptions = def
+            { writerTableOfContents = True
+            , writerTOCDepth        = 3
+            , writerTemplate        = Just tocTemplate
+            }
+
     match "images/*" $ do
         route   idRoute
         compile copyFileCompiler
@@ -75,12 +164,27 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
     
+    create ["topics.html"] $ do
+        route idRoute
+        compile $ do
+            let topics = sortBy (comparing (map toLower . fst)) (tagsMap tags)
+                topicsCtx =
+                    listField "topics" (topicCtx tags) (mapM makeItem topics) `mappend`
+                    constField "title" "Topics"                               `mappend`
+                    defaultContext
+
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/topics.html"  topicsCtx
+                >>= loadAndApplyTemplate "templates/default.html" topicsCtx
+                >>= relativizeUrls
+
     match "posts/*" $ do
         route $ setExtension "html"
-        compile $ (pandocCompilerWith defaultHakyllReaderOptions def)
-            >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithTags tags)
+        let postCtx' = postCtxWithTags tags `mappend` relatedField `mappend` seriesField
+        compile $ pandocCompilerWith defaultHakyllReaderOptions tocWriterOptions
+            >>= loadAndApplyTemplate "templates/post.html"    postCtx'
             >>= saveSnapshot "content"
-            >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
+            >>= loadAndApplyTemplate "templates/default.html" postCtx'
             >>= relativizeUrls
 
     create ["archive.html"] $ do

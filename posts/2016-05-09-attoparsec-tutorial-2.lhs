@@ -1,6 +1,7 @@
 ---
 title: Attoparsec Tutorial Part 2 - Parse and Return Values
 tags: haskell, attoparsec
+series: Attoparsec Tutorial
 ---
 
 Now we want to parse something a little more complicated. Take a string input of

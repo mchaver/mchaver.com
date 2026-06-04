@@ -1,6 +1,7 @@
 ---
 title: Linux Command Line - I/O Redirection
 tags: linux, command line
+series: Linux Command Line
 ---
 
 ## Streams

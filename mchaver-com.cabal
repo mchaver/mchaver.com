@@ -10,5 +10,6 @@ executable site
                   , data-default
                   , hakyll >= 4.16 && < 4.17
                   , pandoc
+                  , text
   ghc-options:      -threaded
   default-language: GHC2021

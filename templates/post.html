@@ -1,3 +1,14 @@
+$if(series)$
+<nav class="series-nav">
+  <div class="series-label">Series: $series$</div>
+  <ol>
+    $for(seriesPosts)$
+      <li>$if(current)$<span class="current">$title$</span>$else$<a href="$url$">$title$</a>$endif$</li>
+    $endfor$
+  </ol>
+</nav>
+$endif$
+
 <div class="info">
   $date$
 </div>
@@ -9,3 +20,14 @@
 </div>
 
 $body$
+
+$if(hasRelated)$
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    $for(related)$
+      <li><a href="$url$">$title$</a></li>
+    $endfor$
+  </ul>
+</aside>
+$endif$

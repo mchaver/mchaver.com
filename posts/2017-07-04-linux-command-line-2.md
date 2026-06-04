@@ -1,6 +1,7 @@
 ---
 title: Linux Command Line - Disk Usage and Disk Filesystem
 tags: linux
+series: Linux Command Line
 ---
 
 `du` displays disk usage information and `df` displays disk filesystem 

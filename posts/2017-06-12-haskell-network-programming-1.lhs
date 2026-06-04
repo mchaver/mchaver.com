@@ -1,6 +1,7 @@
 ---
 title: Haskell Network Programming - UDP Client and Server
 tags: haskell, networking
+series: Haskell Network Programming
 ---
 
 Using the [network](https://hackage.haskell.org/package/network) package we can 
