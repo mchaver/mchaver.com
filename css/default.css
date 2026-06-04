@@ -53,9 +53,9 @@
     --code-bg:     #f2f2f2;
     --code-border: #dddddd;
     --accent:      #379392;
-    --tag-bg:      #fffcd7;
-    --tag-border:  #d5d458;
-    --tag-fg:      #555555;
+    --tag-bg:      #e7f3f2;
+    --tag-border:  #c3e0de;
+    --tag-fg:      #1f6f6d;
 }
 
 [data-theme="dark"] {
@@ -71,9 +71,9 @@
     --code-bg:     #242424;
     --code-border: #3a3a3a;
     --accent:      #4fb0c6;
-    --tag-bg:      #3a3722;
-    --tag-border:  #5e5a2e;
-    --tag-fg:      #c9c79a;
+    --tag-bg:      #16302f;
+    --tag-border:  #2a5754;
+    --tag-fg:      #7fc9c5;
 }
 
 html {
@@ -195,6 +195,31 @@ div.info {
     font-style: italic;
 }
 
+/* --- post header: title (h1), then date row, then type + tags row --- */
+.post-meta {
+    margin-bottom: 1.6em;
+}
+
+.post-date-line {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 0.5em;
+}
+
+.post-tags-line {
+    line-height: 2;
+}
+
+.post-tags-line .kind {
+    margin-right: 0.3em;
+}
+
+/* Petrona reads best with slightly tighter paragraph leading. */
+article p {
+    line-height: 1.6;
+}
+
 /* --- code --- */
 pre {
     background: var(--code-bg);
@@ -269,29 +294,30 @@ ul li {
 }
 
 .tag {
+    display: inline-block;
     background-color: var(--tag-bg);
     border: 1px solid var(--tag-border);
-    border-radius: 5px;
+    border-radius: 0.4em;
     color: var(--tag-fg);
-    font-family: var(--font-sans);
-    font-size: 0.62rem;
-    margin-left: 0.5em;
-    padding: 0.1em 0.4em 0.1em 0.4em;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.02em;
+    margin-left: 0.4em;
+    padding: 0.15em 0.5em;
     text-decoration: none;
     vertical-align: middle;
     cursor: pointer;
 }
 
-/* --- content-type badges --- */
+/* --- content-type badges: same boxed pill as tags, coloured per kind --- */
 .kind {
     display: inline-block;
-    font-family: var(--font-sans);
-    font-size: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 700;
-    padding: 0.12em 0.55em;
-    border-radius: 0.9em;
+    letter-spacing: 0.05em;
+    padding: 0.15em 0.5em;
+    border-radius: 0.4em;
     vertical-align: middle;
     border: 1px solid transparent;
     white-space: nowrap;

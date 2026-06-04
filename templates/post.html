@@ -9,14 +9,12 @@ $if(series)$
 </nav>
 $endif$
 
-<div class="info">
-  $if(kind)$<a class="kind kind-$kind$" href="/kinds/$kind$.html">$kind$</a> $endif$$date$$if(updated)$ · updated $updated$$endif$
-</div>
-
-<div>
-  $if(tags)$
-  $tags$
-  $endif$
+<div class="post-meta">
+  <div class="post-date-line">$date$$if(updated)$ · updated $updated$$endif$</div>
+  <div class="post-tags-line">
+    $if(kind)$<a class="kind kind-$kind$" href="/kinds/$kind$.html">$kind$</a>$endif$
+    $if(tags)$$tags$$endif$
+  </div>
 </div>
 
 $body$
