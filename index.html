@@ -4,7 +4,7 @@ topic, by kind, or <a href="/search.html">search</a>.</p>
 <section class="facet">
   <h2>Recent</h2>
   <ol class="posts">
-    $for(recent)$$partial("templates/post-li.html")$$endfor$
+    $for(recent)$$partial("templates/post-title.html")$$endfor$
   </ol>
 </section>
 
@@ -12,7 +12,7 @@ $if(hasUpdated)$
 <section class="facet">
   <h2>Recently updated</h2>
   <ol class="posts">
-    $for(updated)$$partial("templates/post-li.html")$$endfor$
+    $for(updated)$$partial("templates/post-title.html")$$endfor$
   </ol>
 </section>
 $endif$
@@ -20,21 +20,21 @@ $endif$
 <section class="facet">
   <h2><a href="/kinds/tutorial.html">Tutorials</a></h2>
   <ol class="posts">
-    $for(tutorials)$$partial("templates/post-li.html")$$endfor$
+    $for(tutorials)$$partial("templates/post-title.html")$$endfor$
   </ol>
 </section>
 
 <section class="facet">
   <h2><a href="/kinds/reference.html">References</a></h2>
   <ol class="posts">
-    $for(references)$$partial("templates/post-li.html")$$endfor$
+    $for(references)$$partial("templates/post-title.html")$$endfor$
   </ol>
 </section>
 
 <section class="facet">
   <h2><a href="/kinds/note.html">Notes</a></h2>
   <ol class="posts">
-    $for(notes)$$partial("templates/post-li.html")$$endfor$
+    $for(notes)$$partial("templates/post-title.html")$$endfor$
   </ol>
 </section>
 

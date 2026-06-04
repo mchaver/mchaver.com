@@ -42,11 +42,11 @@
                   Consolas, monospace;
 
     --bg:          #ffffff;
-    --fg:          #2f2f2f;
-    --muted:       #5f5f5f;
-    --faint:       #888888;
-    --link:        #379392;
-    --link-hover:  #267371;
+    --fg:          #2a2a2a;
+    --muted:       #565656;
+    --faint:       #6e6e6e;
+    --link:        #1f7a78;
+    --link-hover:  #135f5d;
     --border:      #e2e2e2;
     --rule:        #cfcfcf;
     --card-bg:     #fafafa;
@@ -77,7 +77,7 @@
 }
 
 html {
-    font-size: 18px;
+    font-size: 20px;
     background-color: var(--bg);
     color: var(--fg);
 }
