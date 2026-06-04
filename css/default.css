@@ -1,9 +1,46 @@
 /* ----------------------------------------------------------------------------
+   Self-hosted fonts (see dev/font-compare.html to audition alternatives):
+     Petrona       — serif, body + headings (the reading font)
+     JetBrains Mono — code
+   Both are variable woff2 covering weights 400-600. Open-licensed (OFL).
+---------------------------------------------------------------------------- */
+@font-face {
+    font-family: 'Petrona';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url('/fonts/petrona.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Petrona';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fonts/petrona-italic.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400 600;
+    font-display: swap;
+    src: url('/fonts/jetbrainsmono.woff2') format('woff2');
+}
+
+/* ----------------------------------------------------------------------------
    Theme variables. Light is the default; [data-theme="dark"] (set on <html> by
    the inline script in default.html) overrides them. Using an attribute rather
    than @media keeps every dark rule at higher specificity than syntax.css.
 ---------------------------------------------------------------------------- */
 :root {
+    /* Font stacks — swap --font-serif here to change the reading font. */
+    --font-serif: 'Petrona', Georgia, 'Times New Roman', serif;
+    --font-sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                  Helvetica, Arial, sans-serif;
+    --font-mono:  'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo,
+                  Consolas, monospace;
+
     --bg:          #ffffff;
     --fg:          #2f2f2f;
     --muted:       #5f5f5f;
@@ -46,8 +83,7 @@ html {
 }
 
 body {
-    font-family: "Source Sans Pro", -apple-system, BlinkMacSystemFont,
-                 "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-serif);
     margin: 0 auto;
     line-height: 1.65;
     font-size: 1rem;
@@ -82,6 +118,7 @@ a.post-link:hover {
     display: flex;
     align-items: baseline;
     flex-wrap: wrap;
+    font-family: var(--font-sans);
     font-weight: bold;
     font-size: 1rem;
     padding: 5px 10px;
@@ -153,7 +190,8 @@ h3 {
 
 div.info {
     color: var(--muted);
-    font-size: 0.8rem;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
     font-style: italic;
 }
 
@@ -164,7 +202,8 @@ pre {
     border-radius: 0.5em;
     padding: 1em;
     overflow-x: auto;
-    font-size: 0.85rem;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
     line-height: 1.5;
 }
 
@@ -174,7 +213,8 @@ code {
     border-radius: 0.25em;
     padding-left: 0.2em;
     padding-right: 0.2em;
-    font-size: 0.88em;
+    font-family: var(--font-mono);
+    font-size: 0.82em;
     white-space: pre-wrap;
 }
 
@@ -233,6 +273,7 @@ ul li {
     border: 1px solid var(--tag-border);
     border-radius: 5px;
     color: var(--tag-fg);
+    font-family: var(--font-sans);
     font-size: 0.62rem;
     margin-left: 0.5em;
     padding: 0.1em 0.4em 0.1em 0.4em;
@@ -244,6 +285,7 @@ ul li {
 /* --- content-type badges --- */
 .kind {
     display: inline-block;
+    font-family: var(--font-sans);
     font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -288,6 +330,7 @@ li.post {
 
 div.post-date {
     color: var(--faint);
+    font-family: var(--font-sans);
     font-size: 0.72rem;
 }
 
