@@ -33,6 +33,8 @@
           <a href="/projects.html">projects</a>
           <span> | </span>
           <a href="/about.html">about</a>
+          <span> | </span>
+          <a href="/search.html">search</a>
         </span>
         <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
       </div>
@@ -61,6 +63,13 @@
           btn.textContent = icon(next);
         });
       })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
     </script>
   </body>
 </html>

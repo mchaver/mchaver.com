@@ -9,12 +9,15 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
 import Control.Monad (forM, filterM)
+import Data.Aeson (Value, encode, object, (.=))
+import qualified Data.ByteString.Lazy as BL
 import Data.Char (toLower)
 import Data.Function (on)
 import Data.List (intersect, sort, sortBy)
-import Data.Maybe (catMaybes)
+import Data.Maybe (catMaybes, fromMaybe)
 import Data.Ord (Down (..), comparing)
 import qualified Data.Text as T
+import System.FilePath (takeFileName)
 
 import Text.Pandoc.Options (WriterOptions (..))
 import Text.Pandoc.Templates (compileTemplate)
@@ -101,6 +104,42 @@ seriesItemCtx =
     boolField "current" (snd . itemBody)
 
 --------------------------------------------------------------------------------
+-- Faceted homepage helpers.
+
+-- Keep only the loaded posts whose `kind` metadata matches.
+filterByKind :: String -> [Item String] -> Compiler [Item String]
+filterByKind k = filterM (\i -> (== Just k) <$> getMetadataField (itemIdentifier i) "kind")
+
+-- Posts carrying an `updated` field, most-recently-updated first.
+recentlyUpdated :: [Item String] -> Compiler [Item String]
+recentlyUpdated posts = do
+    keyed <- forM posts $ \i -> do
+        mu <- getMetadataField (itemIdentifier i) "updated"
+        pure (mu, i)
+    pure [ i | (Just _, i) <- sortBy (comparing (Down . fst)) keyed ]
+
+--------------------------------------------------------------------------------
+-- One entry in the client-side search index (search.json).
+searchDoc :: Item String -> Compiler Value
+searchDoc post = do
+    let ident = itemIdentifier post
+        date  = take 10 (takeFileName (toFilePath ident))
+    route' <- getRoute ident
+    title  <- fromMaybe "" <$> getMetadataField ident "title"
+    kind   <- fromMaybe "" <$> getMetadataField ident "kind"
+    tags'  <- getTags ident
+    let url  = maybe "#" toUrl route'
+        body = take 5000 (stripTags (itemBody post))
+    pure $ object
+        [ "title" .= title
+        , "url"   .= url
+        , "kind"  .= kind
+        , "date"  .= date
+        , "tags"  .= tags'
+        , "text"  .= body
+        ]
+
+--------------------------------------------------------------------------------
 -- Topics page: one section per tag, each listing its posts (newest first).
 topicCtx :: Tags -> Context (String, [Identifier])
 topicCtx tags =
@@ -153,7 +192,27 @@ main = hakyll $ do
             >>= relativizeUrls
     
     tags <- buildTags "posts/*" (fromCapture "tags/*.html")
-    
+
+    -- Treat each post's `kind` as a one-element tag set so we get per-kind index
+    -- pages (kinds/tutorial.html, ...) that the content-type badges link to.
+    kinds <- buildTagsWith
+        (\ident -> maybe [] (: []) <$> getMetadataField ident "kind")
+        "posts/*"
+        (fromCapture "kinds/*.html")
+
+    tagsRules kinds $ \kind pattern -> do
+        route idRoute
+        compile $ do
+            posts <- recentFirst =<< loadAll pattern
+            let ctx = constField "title" ("Posts: " ++ kind)
+                      `mappend` listField "posts" (postCtxWithTags tags) (return posts)
+                      `mappend` defaultContext
+
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/tag.html"     ctx
+                >>= loadAndApplyTemplate "templates/default.html" ctx
+                >>= relativizeUrls
+
     tagsRules tags $ \tag pattern -> do
         let title = "Posts tagged \"" ++ tag ++ "\""
         route idRoute
@@ -214,15 +273,41 @@ main = hakyll $ do
     match "index.html" $ do
         route idRoute
         compile $ do
-            posts <- recentFirst =<< loadAll "posts/*"
-            let indexCtx =
-                    listField "posts" (postCtxWithTags tags) (return posts) `mappend`
-                    constField "title" ""                `mappend`
+            allPosts <- recentFirst =<< loadAll "posts/*"
+            tut      <- take 5 <$> filterByKind "tutorial"  allPosts
+            ref      <- take 5 <$> filterByKind "reference" allPosts
+            notes    <- take 5 <$> filterByKind "note"      allPosts
+            updated  <- take 5 <$> recentlyUpdated allPosts
+            let pc = postCtxWithTags tags
+                indexCtx =
+                    listField "recent"     pc (return (take 6 allPosts))   `mappend`
+                    listField "tutorials"  pc (return tut)                 `mappend`
+                    listField "references" pc (return ref)                 `mappend`
+                    listField "notes"      pc (return notes)               `mappend`
+                    listField "updated"    pc (return updated)             `mappend`
+                    boolField "hasUpdated" (const (not (null updated)))    `mappend`
+                    constField "title" ""                                  `mappend`
                     defaultContext
 
             getResourceBody
                 >>= applyAsTemplate indexCtx
                 >>= loadAndApplyTemplate "templates/default.html" indexCtx
+                >>= relativizeUrls
+
+    create ["search.json"] $ do
+        route idRoute
+        compile $ do
+            posts <- recentFirst =<< loadAllSnapshots "posts/*" "content"
+            docs  <- mapM searchDoc posts
+            makeItem (BL.toStrict (encode docs))
+
+    create ["search.html"] $ do
+        route idRoute
+        compile $ do
+            let ctx = constField "title" "Search" `mappend` defaultContext
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/search.html"  ctx
+                >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
 
     create ["rss.xml"] $ do

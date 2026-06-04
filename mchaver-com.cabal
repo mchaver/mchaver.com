@@ -6,8 +6,11 @@ cabal-version:      2.0
 executable site
   main-is:          site.hs
   build-depends:    base >= 4.18 && < 5
+                  , aeson
                   , blaze-html
+                  , bytestring
                   , data-default
+                  , filepath
                   , hakyll >= 4.16 && < 4.17
                   , pandoc
                   , text
