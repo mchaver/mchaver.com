@@ -112,18 +112,19 @@ a.post-link:hover {
     text-decoration: underline;
 }
 
-/* --- header / nav --- */
+/* --- header / nav: a full-width bar (outside #wrapper) so the brand sits at
+   the far left of the screen and the theme toggle at the far right --- */
 #header {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     flex-wrap: wrap;
     font-family: var(--font-sans);
     font-weight: bold;
     font-size: 1rem;
-    padding: 5px 10px;
-    margin-top: 1em;
-    margin-bottom: 1em;
+    padding: 0.7em 1.5rem;
+    margin: 0 0 1.5em;
     line-height: 1.4;
+    border-bottom: 1px solid var(--border);
 }
 
 a#main-link {
@@ -134,17 +135,17 @@ a#main-link {
 }
 
 #header span.headerlinks {
-    margin-left: 1em;
+    margin: 0 auto;
     font-weight: normal;
 }
 
 #header span a {
     text-decoration: none;
-    padding: 0 0.4em 0.4em;
+    padding: 0 0.5em;
 }
 
 #theme-toggle {
-    margin-left: auto;
+    margin-left: 0;
     background: none;
     border: none;
     color: var(--muted);
