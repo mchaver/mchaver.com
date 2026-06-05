@@ -42,7 +42,7 @@
                   Consolas, monospace;
 
     --bg:          #ffffff;
-    --fg:          #2a2a2a;
+    --fg:          #1f1f1f;
     --muted:       #565656;
     --faint:       #6e6e6e;
     --link:        #1f7a78;
@@ -85,11 +85,10 @@ html {
 body {
     font-family: var(--font-serif);
     margin: 0 auto;
-    line-height: 1.65;
+    line-height: 1.55;
     font-size: 1rem;
     background-color: var(--bg);
     color: var(--fg);
-    -webkit-font-smoothing: antialiased;
     -webkit-text-size-adjust: 100%;
 }
 
@@ -171,8 +170,8 @@ div#footer {
 /* --- headings --- */
 h1, h2, h3, h4 {
     line-height: 1.25;
-    margin-top: 1.6em;
-    margin-bottom: 0.5em;
+    margin-top: 1.15em;
+    margin-bottom: 0.35em;
 }
 
 h1 {
@@ -215,9 +214,16 @@ div.info {
     margin-right: 0.3em;
 }
 
-/* Petrona reads best with slightly tighter paragraph leading. */
+/* Petrona reads best with slightly tighter paragraph leading; trimmed vertical
+   margins fit more text per screen. */
 article p {
-    line-height: 1.6;
+    line-height: 1.55;
+    margin: 0 0 0.7em;
+}
+
+article ul,
+article ol {
+    margin: 0.3em 0 0.7em;
 }
 
 /* --- code --- */
@@ -348,8 +354,7 @@ ol.posts li:first-child.post {
 }
 
 ol.posts li.post {
-    padding-top: 0.35em;
-    padding-bottom: 0.35em;
+    padding-top: 0.25em;
 }
 
 li.post {
