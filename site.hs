@@ -359,6 +359,13 @@ main = hakyll $ do
             let feedCtx = postCtx `mappend` bodyField "description"
             renderRss feedConfig feedCtx posts
 
+    create ["atom.xml"] $ do
+        route idRoute
+        compile $ do
+            posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/*" "content"
+            let feedCtx = postCtx `mappend` bodyField "description"
+            renderAtom feedConfig feedCtx posts
+
     match "templates/*" $ compile templateBodyCompiler
 
     -- loads the react project directly without changing anything
