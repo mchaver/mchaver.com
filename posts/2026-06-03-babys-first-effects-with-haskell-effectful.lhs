@@ -153,6 +153,38 @@ runLoggerIO = interpret $ \_ (LogMsg msg) -> liftIO (putStrLn ("[log] " <> msg))
 --   pure result
 \end{code}
 
+Uncommenting `writeAndReadExampleFileBroken` and compiling produces the following error. GHC notices that `logMsg` needs `Logger :> es`, but the type signature only promises `FileSystem :> es`, so it refuses to compile.
+
+```
+Main.lhs:193:3: error: [GHC-39999]
+    • Could not deduce ‘Logger :> es’ arising from a use of ‘logMsg’
+      from the context: FileSystem :> es
+        bound by the type signature for:
+                   writeAndReadExampleFileBroken :: forall (es :: [Effect]).
+                                                    (FileSystem :> es) =>
+                                                    Eff es String
+        at Main.lhs:189:1-68
+    • In a stmt of a 'do' block: logMsg result
+      In the expression:
+        do writeFile'
+             "/tmp/effectful-example.txt"
+             "Hello from Effectful with FileSystem and Logger!\n"
+           result <- readFile' "/tmp/effectful-example.txt"
+           logMsg result
+           pure result
+      In an equation for ‘writeAndReadExampleFileBroken’:
+          writeAndReadExampleFileBroken
+            = do writeFile'
+                   "/tmp/effectful-example.txt"
+                   "Hello from Effectful with FileSystem and Logger!\n"
+                 result <- readFile' "/tmp/effectful-example.txt"
+                 logMsg result
+                 ....
+    |
+193 |   logMsg result
+    |   ^^^^^^
+```
+
 In order to make it compile, we need to add Logger to the type signature.
 
 \begin{code}
