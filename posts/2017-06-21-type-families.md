@@ -1,12 +1,15 @@
 ---
 title: An Introduction to Type Families
+kind: reference
 tags: haskell
 ---
 
 ## Review
 
 Before discussing type families, we need to review type synonyms, type classes, 
-multi-parameter type classes and functional dependencies.
+multi-parameter type classes and functional dependencies. It also helps to read
+[Kinds in Haskell](/posts/2017-06-19-kinds-in-haskell.html),
+since type families operate at the same level.
 
 #### Type synonyms
 
@@ -266,6 +269,10 @@ instance Eq e => Container (Maybe e) where
 - Data families create new types, every instance of a data family declares new constructors.
 
 - Type families can only refer to other existing types.
+
+Type families are the workhorse behind type-level programming. For worked
+examples, see [Type-Level List Search](/posts/2017-06-22-type-level-list-search.html)
+and [Type-Level FizzBuzz](/posts/2018-12-16-type-level-fizzbuzz.html).
 
 ## References
 

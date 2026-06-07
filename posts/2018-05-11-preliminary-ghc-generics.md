@@ -1,5 +1,6 @@
 ---
 title: Introduction to GHC.Generics
+kind: reference
 tags: haskell, generics
 ---
 

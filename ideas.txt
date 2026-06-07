@@ -1,4 +1,11 @@
+baby's first effects with Haskell Effectful
+A journey through language extensions
+Comparing rust and haskell web servers
+clippy to the max (rust)
+git best practices 
 Hugs
+
+
 
 GHC history
 - laziness
@@ -36,3 +43,61 @@ ruby metaprogramming
 ruby vs python 
 python c
 python numerical libraries
+
+inspirtation
+https://wiki.wordsoftype.com/
+
+
+
+
+
+
+Both sites are reference-oriented in a way that fits your blog surprisingly well — your archive is full of series and evergreen explainers (attoparsec 1–3, linux-command-line 1–3, the whole type-level
+  Haskell cluster, network-programming 1–2), not time-bound news. That's the key insight: your content already wants to be a garden/encyclopedia, but it's presented as a flat reverse-chronological list.
+  Here's what each site does and what's worth stealing.
+
+  What Pete Millspaugh's digital garden does
+
+  - Content typed by kind, not just date. Essays, TILs, Notes, Brainstorms, Clippings — each a distinct view. This signals "depth of polish" up front and lets a half-formed note coexist with a finished
+  essay without embarrassment.
+  - Non-chronological, interconnected. Notes link to each other; the homepage is curated entry points, not "latest 10."
+  - Lightweight affordances: ⌘K search, dark/light toggle, a footer "trees & links" map, ✦ markers to flag standout pieces.
+  - Cultivation framing ("planted/tended") that gives readers permission to treat posts as living, and gives you permission to update old posts instead of only appending new ones.
+
+  What wordsoftype's wiki does
+
+  - Consistent entry skeleton. Recurring section headings (FUNCTION / HISTORY / DESIGN / RULES) so every entry is skimmable the same way — you learn the shape once.
+  - Modular sections that serve both quick-reference and deep-read from the same page.
+  - Search-first, flat, alphabetical — discoverability over hierarchy.
+  - Show-don't-tell examples — entries demonstrate the concept (the type specimen is the explanation). For you that's runnable/inline code as the primary content, which you already do via .lhs.
+  - Dense cross-linking between related terms inline.
+
+  What to apply here — concrete, ranked
+
+  1. Group series and topics instead of a flat list. Your strongest, lowest-effort win. You already have a tags machinery in site.hs; lean into it. Build curated landing sections ("Haskell type-level",
+  "Linux command line", "Parsing with attoparsec") and order series posts 1→N within them. This is the single biggest readability gain and turns 41 scattered posts into ~6 coherent tracks.
+
+  2. Per-post table of contents + heading anchors. Your tutorials are long and section-heavy — a TOC (auto-generated; Pandoc supports --toc, easy to wire into pandocCompilerWith) makes them skimmable
+  like wiki entries. Add id anchors to h2/h3 for deep links.
+
+  3. A content-type label per post. Borrow Pete's idea without the whimsy: a small front-matter kind: (tutorial / note / reference / til) shown as a badge. Lets you publish short TILs without them
+  looking unfinished next to full tutorials — likely to increase how often you post.
+
+  4. Inline cross-links + "Related posts." A short related-by-tag list at the foot of each post (cheap in Hakyll) plus deliberate inline links between, e.g., the kinds / type-families / type-level-list
+  posts. Turns the archive into a graph.
+
+  5. Client-side search. A flat JSON index + a tiny fetch (or a generated search.json over titles/tags/bodies). Fits Hakyll's static model; no backend.
+
+  6. Dark mode + typography polish. Your CSS is minimal and fine, but a serif/measure tune-up, a dark toggle, and max-width: ~70ch reading column would close most of the visual-quality gap. Low effort,
+  high perceived polish.
+
+  7. "Updated" dates. You already render date; add an optional updated: field and show "tended" dates. Encourages you to revise the 2017 posts (some GHC content is dated) rather than leaving them frozen.
+
+  What I'd not copy
+
+  - The horticultural vocabulary ("seedling/budding") — fun for Pete, probably noise for a technical Haskell/Linux audience. Take the mechanic (content types, living posts), skip the metaphor.
+  - wordsoftype's sponsor badges / heavy custom illustration — not your model.
+
+  ---
+  If you want, I can implement these incrementally. The natural first PR is #1 + #2 + #4 (series grouping, auto-TOC, related posts) since they're pure Hakyll/template/CSS work with no new infrastructure
+  and give the biggest jump. Want me to start there, or would you rather I prototype the visual side first (dark mode + typography + content-type badges) so you can see the feel?

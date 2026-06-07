@@ -1,5 +1,6 @@
 ---
 title: Monad and Monad Transformer Templates
+kind: note
 tags: haskell, monad, monad transformer
 ---
 

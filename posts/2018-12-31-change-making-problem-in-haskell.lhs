@@ -1,5 +1,6 @@
 ---
 title: Change Making Problem in Haskell
+kind: note
 tags: haskell, dynamic programming
 ---
 

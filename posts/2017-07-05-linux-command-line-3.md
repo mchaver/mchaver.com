@@ -1,6 +1,8 @@
 ---
 title: Linux Command Line - find, which, whereis, grep, awk, sed
+kind: tutorial
 tags: linux, command line
+series: Linux Command Line
 ---
 
 A short reference for common search tools.

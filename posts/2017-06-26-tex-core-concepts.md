@@ -1,5 +1,6 @@
 ---
 title: TeX Core Concepts
+kind: reference
 tags: TeX
 ---
 

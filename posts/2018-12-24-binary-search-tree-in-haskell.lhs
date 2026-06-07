@@ -1,5 +1,6 @@
 ---
 title: Binary Search Tree in Haskell
+kind: note
 tags: haskell, tree
 ---
 

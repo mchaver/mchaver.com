@@ -1,5 +1,6 @@
 ---
 title: Using curl and GraphQL
+kind: tutorial
 tags: command line, GraphQL
 ---
 

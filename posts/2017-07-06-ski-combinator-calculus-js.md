@@ -1,5 +1,6 @@
 ---
 title: SKI Combinator Calculus in JavaScript
+kind: note
 tags: combinator calculus
 ---
 

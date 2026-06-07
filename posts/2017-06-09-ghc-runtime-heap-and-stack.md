@@ -1,5 +1,6 @@
 ---
 title: GHC Runtime - Stack and Heap
+kind: reference
 tags: haskell
 ---
 

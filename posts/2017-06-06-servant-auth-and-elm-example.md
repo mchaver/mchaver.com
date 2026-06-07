@@ -1,5 +1,6 @@
 ---
 title: Servant Auth and Elm
+kind: tutorial
 tags: haskell, elm
 ---
 

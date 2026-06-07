@@ -8,8 +8,19 @@ import Text.Blaze.Html.Renderer.String (renderHtml)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 
-import Control.Monad (forM)
-import Data.Maybe (catMaybes)
+import Control.Monad (forM, filterM)
+import Data.Aeson (Value, encode, object, (.=))
+import qualified Data.ByteString.Lazy as BL
+import Data.Char (toLower)
+import Data.Function (on)
+import Data.List (intersect, intersperse, sort, sortBy)
+import Data.Maybe (catMaybes, fromMaybe)
+import Data.Ord (Down (..), comparing)
+import qualified Data.Text as T
+import System.FilePath (takeFileName)
+
+import Text.Pandoc.Options (WriterOptions (..))
+import Text.Pandoc.Templates (compileTemplate)
 
 postCtxWithTags :: Tags -> Context String
 -- postCtxWithTags tags = tagsField "tags" tags `mappend` postCtx
@@ -43,9 +54,172 @@ tagsFieldWith' getTags' renderLink cat key tags = field key $ \item -> do
     return $ renderHtml $ cat $ catMaybes $ links
 
 --------------------------------------------------------------------------------
+-- Related posts: other posts ranked by how many tags they share with this one,
+-- most overlap first, ties broken by recency. Used for the "Related posts"
+-- block at the foot of each post.
+relatedIdentsOf :: Item a -> Compiler [Identifier]
+relatedIdentsOf item = do
+    let ident = itemIdentifier item
+    myTags <- getTags ident
+    others <- filter (/= ident) <$> getMatches "posts/*"
+    scored <- forM others $ \i -> do
+        ts <- getTags i
+        pure (length (myTags `intersect` ts), i)
+    pure [ i
+         | (n, i) <- sortBy (comparing (Down . fst) <> comparing (Down . snd)) scored
+         , n > 0 ]
+
+relatedField :: Context String
+relatedField =
+    listFieldWith "related" linkedPostCtx
+        (\item -> take 3 <$> relatedIdentsOf item >>= mapM makeItem)
+    `mappend`
+    boolFieldM "hasRelated" (fmap (not . null) . relatedIdentsOf)
+
+-- A minimal context for a post referenced only by its 'Identifier' (title + url).
+linkedPostCtx :: Context Identifier
+linkedPostCtx =
+    field "url"   (\i -> maybe "#" toUrl <$> getRoute (itemBody i)) `mappend`
+    field "title" (\i -> getMetadataField' (itemBody i) "title")
+
+--------------------------------------------------------------------------------
+-- Series: every post sharing this post's @series:@ metadata, in chronological
+-- order (filenames are date-prefixed, so a plain sort is chronological). The
+-- current post is flagged so the template can render it un-linked.
+seriesField :: Context String
+seriesField = listFieldWith "seriesPosts" seriesItemCtx $ \item -> do
+    let ident = itemIdentifier item
+    mSeries <- getMetadataField ident "series"
+    case mSeries of
+        Nothing -> pure []
+        Just s  -> do
+            ids  <- getMatches "posts/*"
+            same <- filterM (\i -> (== Just s) <$> getMetadataField i "series") ids
+            mapM (\i -> makeItem (i, i == ident)) (sort same)
+
+seriesItemCtx :: Context (Identifier, Bool)
+seriesItemCtx =
+    field "url"     (\i -> maybe "#" toUrl <$> getRoute (fst (itemBody i))) `mappend`
+    field "title"   (\i -> getMetadataField' (fst (itemBody i)) "title")   `mappend`
+    boolField "current" (snd . itemBody)
+
+--------------------------------------------------------------------------------
+-- Archive helpers.
+
+-- Render tags as plain comma-separated text links (class "meta-tag"), i.e.
+-- without the boxed-pill styling of the normal tag field.
+plainTagRenderLink :: String -> Maybe FilePath -> Maybe H.Html
+plainTagRenderLink _   Nothing   = Nothing
+plainTagRenderLink tag (Just fp) =
+    Just $ H.a ! A.class_ "meta-tag" ! A.href (toValue (toUrl fp)) $ toHtml tag
+
+plainTags :: String -> Tags -> Context a
+plainTags key tags =
+    tagsFieldWith getTags plainTagRenderLink
+        (mconcat . intersperse (toHtml (", " :: String))) key tags
+
+-- A post's effective "last updated" date: the `updated` field if present,
+-- otherwise the original date parsed from its date-prefixed filename.
+lastUpdatedOf :: Item a -> Compiler String
+lastUpdatedOf item = do
+    let ident = itemIdentifier item
+        date  = take 10 (takeFileName (toFilePath ident))
+    fromMaybe date <$> getMetadataField ident "updated"
+
+-- Order posts by last-updated, most recent first.
+byLastUpdated :: [Item a] -> Compiler [Item a]
+byLastUpdated items = do
+    keyed <- forM items $ \i -> do
+        d <- lastUpdatedOf i
+        pure (d, i)
+    pure (map snd (sortBy (comparing (Down . fst)) keyed))
+
+-- Context for an archive row: title/url/kind (from defaultContext), plus plain
+-- tags, a normalized publication state (default "complete"), and last-updated.
+archivePostCtx :: Tags -> Context String
+archivePostCtx tags =
+    field "lastdate" lastUpdatedOf                                          `mappend`
+    field "state"
+        (\i -> fromMaybe "complete" <$> getMetadataField (itemIdentifier i) "state")
+                                                                            `mappend`
+    plainTags "tags" tags                                                   `mappend`
+    defaultContext
+
+--------------------------------------------------------------------------------
+-- Faceted homepage helpers.
+
+-- Keep only the loaded posts whose `kind` metadata matches.
+filterByKind :: String -> [Item String] -> Compiler [Item String]
+filterByKind k = filterM (\i -> (== Just k) <$> getMetadataField (itemIdentifier i) "kind")
+
+-- Posts carrying an `updated` field, most-recently-updated first.
+recentlyUpdated :: [Item String] -> Compiler [Item String]
+recentlyUpdated posts = do
+    keyed <- forM posts $ \i -> do
+        mu <- getMetadataField (itemIdentifier i) "updated"
+        pure (mu, i)
+    pure [ i | (Just _, i) <- sortBy (comparing (Down . fst)) keyed ]
+
+--------------------------------------------------------------------------------
+-- One entry in the client-side search index (search.json).
+searchDoc :: Item String -> Compiler Value
+searchDoc post = do
+    let ident = itemIdentifier post
+        date  = take 10 (takeFileName (toFilePath ident))
+    route' <- getRoute ident
+    title  <- fromMaybe "" <$> getMetadataField ident "title"
+    kind   <- fromMaybe "" <$> getMetadataField ident "kind"
+    tags'  <- getTags ident
+    let url  = maybe "#" toUrl route'
+        body = take 5000 (stripTags (itemBody post))
+    pure $ object
+        [ "title" .= title
+        , "url"   .= url
+        , "kind"  .= kind
+        , "date"  .= date
+        , "tags"  .= tags'
+        , "text"  .= body
+        ]
+
+--------------------------------------------------------------------------------
+-- Topics page: one section per tag, each listing its posts (newest first).
+topicCtx :: Tags -> Context (String, [Identifier])
+topicCtx tags =
+    field "topic"    (pure . fst . itemBody)                                  `mappend`
+    field "count"    (pure . show . length . snd . itemBody)                  `mappend`
+    field "topicUrl" (\i -> maybe "#" toUrl <$> getRoute (tagsMakeId tags (fst (itemBody i)))) `mappend`
+    listFieldWith "posts" linkedPostCtx
+        (\i -> mapM makeItem (sortBy (comparing Down) (snd (itemBody i))))
+
+--------------------------------------------------------------------------------
+-- | Pandoc writer template: prepend an auto-generated table of contents (only
+-- when the document actually has headings) to the rendered body.
+tocTemplateSource :: T.Text
+tocTemplateSource = T.unlines
+    [ "$if(toc)$"
+    , "<nav class=\"toc\"><div class=\"toc-title\">Contents</div>$table-of-contents$</nav>"
+    , "$endif$"
+    , "$body$"
+    ]
+
+--------------------------------------------------------------------------------
 main :: IO ()
 main = hakyll $ do
+    -- Pandoc writer template that prepends an auto-generated table of contents
+    -- (when the document has headings) to the rendered body.
+    tocTemplate <- preprocess (either error id <$> compileTemplate "" tocTemplateSource)
+
+    let tocWriterOptions = def
+            { writerTableOfContents = True
+            , writerTOCDepth        = 3
+            , writerTemplate        = Just tocTemplate
+            }
+
     match "images/*" $ do
+        route   idRoute
+        compile copyFileCompiler
+
+    match "fonts/*" $ do
         route   idRoute
         compile copyFileCompiler
 
@@ -60,7 +234,27 @@ main = hakyll $ do
             >>= relativizeUrls
     
     tags <- buildTags "posts/*" (fromCapture "tags/*.html")
-    
+
+    -- Treat each post's `kind` as a one-element tag set so we get per-kind index
+    -- pages (kinds/tutorial.html, ...) that the content-type badges link to.
+    kinds <- buildTagsWith
+        (\ident -> maybe [] (: []) <$> getMetadataField ident "kind")
+        "posts/*"
+        (fromCapture "kinds/*.html")
+
+    tagsRules kinds $ \kind pattern -> do
+        route idRoute
+        compile $ do
+            posts <- recentFirst =<< loadAll pattern
+            let ctx = constField "title" ("Posts: " ++ kind)
+                      `mappend` listField "posts" (postCtxWithTags tags) (return posts)
+                      `mappend` defaultContext
+
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/tag.html"     ctx
+                >>= loadAndApplyTemplate "templates/default.html" ctx
+                >>= relativizeUrls
+
     tagsRules tags $ \tag pattern -> do
         let title = "Posts tagged \"" ++ tag ++ "\""
         route idRoute
@@ -75,21 +269,41 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
     
+    create ["topics.html"] $ do
+        route idRoute
+        compile $ do
+            let topics = sortBy (comparing (map toLower . fst)) (tagsMap tags)
+                topicsCtx =
+                    listField "topics" (topicCtx tags) (mapM makeItem topics) `mappend`
+                    constField "title" "Topics"                               `mappend`
+                    defaultContext
+
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/topics.html"  topicsCtx
+                >>= loadAndApplyTemplate "templates/default.html" topicsCtx
+                >>= relativizeUrls
+
     match "posts/*" $ do
         route $ setExtension "html"
-        compile $ (pandocCompilerWith defaultHakyllReaderOptions def)
-            >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithTags tags)
-            >>= saveSnapshot "content"
-            >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
-            >>= relativizeUrls
+        let postCtx' = postCtxWithTags tags `mappend` relatedField `mappend` seriesField
+        compile $ do
+            -- Clean article body for the RSS feed: no table of contents and no
+            -- page chrome (series nav, related posts, date, tags).
+            _ <- pandocCompilerWith defaultHakyllReaderOptions defaultHakyllWriterOptions
+                >>= saveSnapshot "content"
+            -- Full page: body carries a table of contents, then the post chrome.
+            pandocCompilerWith defaultHakyllReaderOptions tocWriterOptions
+                >>= loadAndApplyTemplate "templates/post.html"    postCtx'
+                >>= loadAndApplyTemplate "templates/default.html" postCtx'
+                >>= relativizeUrls
 
     create ["archive.html"] $ do
         route idRoute
         compile $ do
-            posts <- recentFirst =<< loadAll "posts/*"
+            posts <- byLastUpdated =<< loadAll "posts/*"
             let archiveCtx =
-                    listField "posts" (postCtxWithTags tags) (return posts) `mappend`
-                    constField "title" "Archives"            `mappend`
+                    listField "posts" (archivePostCtx tags) (return posts) `mappend`
+                    constField "title" "Archive"             `mappend`
                     defaultContext
 
             makeItem ""
@@ -101,15 +315,41 @@ main = hakyll $ do
     match "index.html" $ do
         route idRoute
         compile $ do
-            posts <- recentFirst =<< loadAll "posts/*"
-            let indexCtx =
-                    listField "posts" (postCtxWithTags tags) (return posts) `mappend`
-                    constField "title" ""                `mappend`
+            allPosts <- recentFirst =<< loadAll "posts/*"
+            tut      <- take 5 <$> filterByKind "tutorial"  allPosts
+            ref      <- take 5 <$> filterByKind "reference" allPosts
+            notes    <- take 5 <$> filterByKind "note"      allPosts
+            updated  <- take 5 <$> recentlyUpdated allPosts
+            let pc = postCtxWithTags tags
+                indexCtx =
+                    listField "recent"     pc (return (take 6 allPosts))   `mappend`
+                    listField "tutorials"  pc (return tut)                 `mappend`
+                    listField "references" pc (return ref)                 `mappend`
+                    listField "notes"      pc (return notes)               `mappend`
+                    listField "updated"    pc (return updated)             `mappend`
+                    boolField "hasUpdated" (const (not (null updated)))    `mappend`
+                    constField "title" ""                                  `mappend`
                     defaultContext
 
             getResourceBody
                 >>= applyAsTemplate indexCtx
                 >>= loadAndApplyTemplate "templates/default.html" indexCtx
+                >>= relativizeUrls
+
+    create ["search.json"] $ do
+        route idRoute
+        compile $ do
+            posts <- recentFirst =<< loadAllSnapshots "posts/*" "content"
+            docs  <- mapM searchDoc posts
+            makeItem (BL.toStrict (encode docs))
+
+    create ["search.html"] $ do
+        route idRoute
+        compile $ do
+            let ctx = constField "title" "Search" `mappend` defaultContext
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/search.html"  ctx
+                >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
 
     create ["rss.xml"] $ do

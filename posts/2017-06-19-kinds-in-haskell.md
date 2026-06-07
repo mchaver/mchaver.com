@@ -1,5 +1,6 @@
 ---
 title: Kinds in Haskell
+kind: reference
 tags: haskell
 ---
 
@@ -136,6 +137,8 @@ prefixed with `'`.
 λ> :k Cons
 'Cons :: a -> List a -> List a
 ```
+
+You can see more uses of type constructors in these articles: [Type-Level Heterogeneous List](/posts/2017-06-20-type-level-heterogeneous-list.html) and [Type-Level List Search](/posts/2017-06-22-type-level-list-search.html), and the `DataKinds` section in [Phantom Types and GADTs](/posts/2016-05-22-phantom-types-and-gadts.html).
 
 #### PolyKinds
 

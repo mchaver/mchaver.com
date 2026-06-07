@@ -1,5 +1,6 @@
 ---
 title: Writing Again
+kind: note
 tags: writing, blogging
 ---
 

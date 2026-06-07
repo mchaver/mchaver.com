@@ -1,6 +1,8 @@
 ---
 title: Linux Network Tools - netstat
+kind: tutorial
 tags: linux, networking
+series: Linux Network Tools
 ---
 
 netstat is a command line tool that can list out all network (socket) 

@@ -1,5 +1,6 @@
 ---
 title: Haskell Type Names as Strings
+kind: note
 tags: haskell, type-level
 ---
 

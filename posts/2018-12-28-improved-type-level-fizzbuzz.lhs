@@ -1,5 +1,6 @@
 ---
 title: Improved Type-Level FizzBuzz
+kind: note
 tags: haskell, type-level
 ---
 

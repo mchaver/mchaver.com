@@ -1,11 +1,15 @@
 ---
 title: Type-Level List Search
+kind: note
 tags: haskell, type-level
 ---
 
-We will take a quick look at how to handle element search in two kinds of type 
-lists: cons style lists and native Haskell lists. We only need three language 
-pragmas.
+We will take a quick look at how to handle element search in two kinds of type
+lists: cons style lists and native Haskell lists. This builds on
+[Kinds in Haskell](/posts/2017-06-19-kinds-in-haskell.html) and
+[An Introduction to Type Families](/posts/2017-06-21-type-families.html), and is
+a companion to [Type-Level Heterogeneous List](/posts/2017-06-20-type-level-heterogeneous-list.html).
+We only need three language pragmas.
 
 \begin{code}
 {-# LANGUAGE DataKinds    #-}
