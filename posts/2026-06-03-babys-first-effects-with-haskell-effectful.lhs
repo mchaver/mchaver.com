@@ -5,9 +5,9 @@ state: developing
 tags: haskell, effects
 ---
 
-For much of my work with Haskell, I've used the [ReaderT Design Pattern](https://academy.fpblock.com/blog/2017/06/readert-design-pattern/) to pass around configs, mutable references, database connections, etc. to different parts of the executable. It a nice, simple pattern and good for smaller exectuables in Haskell. It is still something I will use, but for larger projects, it is nice to have stricter control over what can happen in certain functions and encode that in the types.
+For much of my work with Haskell, I've used the [ReaderT Design Pattern](https://academy.fpblock.com/blog/2017/06/readert-design-pattern/) to pass around configs, mutable references, database connections, etc. to different parts of the executable. It's a nice, simple pattern and good for smaller exectuables. It is still something I will use, but for larger projects, it is nice to have stricter control over what can happen in certain functions and encode that in the types.
 
-That's where the effects come in. The idea is to encode the effects in a function's type signature and allow it to perform actions like reading or writing a file. [effectful](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) is a nice Haskell library for effects. The author has included a tutorial at [effectful](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) for dynamic effects. It is a nice start, but missing all the pieces for a compilable program so I want to fill in the gaps with this tutorial.
+That's where the effects come in. The idea is to encode the effects in a function's type signature and allow it to perform actions like reading or writing a file. [effectful](https://hackage-content.haskell.org/package/effectful) is a nice Haskell library for effects. The author has included a tutorial at [effectful](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) for dynamic effects. It is a nice start, but missing all the pieces for a compilable program so I want to fill in the gaps with this tutorial.
 
 Let's start by setting up the GHC language extensions and imports we are going to use. 
 
@@ -66,7 +66,7 @@ runFileSystemIO = interpret $ \_ eff ->
     adapt m = liftIO m `catchIO` \e -> throwError . FsError $ show e
 \end{code}
 
-Then we write a simple function that requires the FileSystem of effects and write and reads from a text.
+Then we write a simple function that requires the FileSystem of effects and writes and reads from a text file.
 
 \begin{code}
 writeAndReadExampleFile :: (FileSystem :> es) => Eff es String
@@ -75,11 +75,11 @@ writeAndReadExampleFile = do
   readFile' "/tmp/effectful-example.txt"
 \end{code}
 
-Use functions `runEff`, `runError` with our interpreter `runFileSystemIO` and the function that has the `FileSystem` effect in the type signature, `writeAndReadExampleFile`. If you run this in `main`, you will see it write a file, the read the data from file and try to print it to stdout.
+Use functions `runEff`, `runError` with our interpreter `runFileSystemIO` and the function that has the `FileSystem` effect in the type signature, `writeAndReadExampleFile`. If you run this in `main`, you will see it write a file, then reads the data from file and try to print it to stdout.
 
 \begin{code}
 testMain :: IO ()
-testMain =
+testMain = do
   putStrLn "== runFileSystemIO (real disk) =="
   ioResult <- runEff . runError @FsError . runFileSystemIO $ writeAndReadExampleFile
   report ioResult
@@ -115,8 +115,14 @@ And an IO function for running the pure effect in main.
 testPureEffect :: IO ()
 testPureEffect = do
   putStrLn "\n== runFileSystemPure (in-memory) =="
-  let pureResult = runPureEff . runError @FsError . runFileSystemPure Map.empty $ program
+  let pureResult = runPureEff . runError @FsError . runFileSystemPure Map.empty $ writeAndReadExampleFile
   report (fmap fst pureResult)
+  where
+    report res = case res of
+      Left (callStack, FsError err) ->
+        putStrLn $ "File system error: " <> err <> "\n" <> prettyCallStack callStack
+      Right contents ->
+        putStr $ "Read back:\n" <> contents
 \end{code}
 
 In order to show what error messages look like when you include an effect that is not included in the type signature, we will create a second effect system. Following the patterns from above, this should be pretty straightforward. Define the constructor, make the system dynamic, add a function for the constructor, then create an interpreter function.
@@ -148,8 +154,8 @@ runLoggerIO = interpret $ \_ (LogMsg msg) -> liftIO (putStrLn ("[log] " <> msg))
 In order to make it compile, we need to add Logger to the type signature.
 
 \begin{code}
-writeAndReadExampleFile :: (FileSystem :> es) => Eff es String
-writeAndReadExampleFile = do
+writeReadLogExampleFile :: (FileSystem :> es, Logger :> es) => Eff es String
+writeReadLogExampleFile = do
   writeFile' "/tmp/effectful-example2.txt" "Hello from Effectful with FileSystem and Logger!\n"
   result <- readFile' "/tmp/effectful-example2.txt"
   logMsg result
@@ -158,8 +164,19 @@ writeAndReadExampleFile = do
 \end{code}
 
 \begin{code}
+testLoggerEffect :: IO ()
+testLoggerEffect = do
+  putStrLn "\n== runFileSystemIO + runLoggerIO =="
+  result <- runEff . runError @FsError . runFileSystemIO . runLoggerIO $ writeReadLogExampleFile
+  case result of
+    Left (callStack, FsError err) ->
+      putStrLn $ "File system error: " <> err <> "\n" <> prettyCallStack callStack
+    Right contents ->
+      putStr $ "Read back:\n" <> contents
+
 main :: IO ()
 main = do
   testMain
-  writeAndReadExampleFile
+  testPureEffect
+  testLoggerEffect
 \end{code}
