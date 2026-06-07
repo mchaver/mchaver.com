@@ -9,7 +9,7 @@ In this tutorial, we are going to build a simple file read and write function an
 
 For much of my work with Haskell, I've used the [ReaderT Design Pattern](https://academy.fpblock.com/blog/2017/06/readert-design-pattern/) to pass around configs, mutable references, database connections, etc. to different parts of the executable. It's a nice, simple pattern and good for smaller exectuables. It is still something I will use, but for larger projects, it is nice to have stricter control over what can happen in certain functions and encode that in the types.
 
-That's where the effects come in. The idea is to encode the effects in a function's type signature and allow it to perform actions like reading or writing a file. [effectful](https://hackage-content.haskell.org/package/effectful) is a nice Haskell library for effects. The author has included a tutorial at [effectful](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) for dynamic effects. It is a nice start, but missing all the pieces for a compilable program so I want to fill in the gaps with this tutorial.
+That's where the effects come in. The idea is to encode the effects in a function's type signature and allow it to perform actions like reading or writing a file. [effectful](https://hackage-content.haskell.org/package/effectful) is a nice Haskell library for effects. The author has written a [document](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) for dynamic effects. However, it is not a complete tutorial. I want to fill in the gaps with this tutorial to give the reader a compilable program.
 
 Let's start by setting up the GHC language extensions and imports we are going to use. 
 
@@ -31,7 +31,7 @@ import qualified Data.Map.Strict as Map
 import qualified System.IO as IO
 \end{code}
 
-Then we define a system of effects as data constructors. Dynamic means the effect system can have multiple interpretations.
+Then we define a system of effects as data constructors. The type synonym `type instance DispatchOf FileSystem = Dynamic` marks `FileSystem` as dynamically dispatched, which means we can give it more than one interpretation at run time. We will give it two interpretations in this tutorial.
 
 \begin{code}
 data FileSystem :: Effect where
@@ -41,7 +41,7 @@ data FileSystem :: Effect where
 type instance DispatchOf FileSystem = Dynamic
 \end{code}
 
-With the use of `send`, we can turn the data constructors into functions. `FileSystem` is an effect required by the function. `:>` means `FileSystem` is one of the effect types in the stack of effects `es`.
+With the use of `send`, we can turn the data constructors into functions. `send` hands an operation off to whichever interpreter is installed for `FileSystem` when the program runs. `FileSystem` is an effect required by the function. `:>` means `FileSystem` is one of the effect types in the stack of effects `es`.
 
 \begin{code}
 readFile' :: (FileSystem :> es) => FilePath -> Eff es String
@@ -51,7 +51,7 @@ writeFile' :: (FileSystem :> es) => FilePath -> String -> Eff es ()
 writeFile' path contents = send (WriteFile path contents)
 \end{code}
 
-We define an interpreter for the system of effects. This gives an IO operation to each effect in the system. Start by looking at the type signature. `IOE` allows an arbitrary MonadIO computation. `Error` is an error effect we use with our custom error `FsError`. It allows this function to fail with `FsError`. `interpret` implements the effect and lets us implement each path in `FileSystem`.
+We define an interpreter for the system of effects. This gives an IO operation to each effect in the system. Start by looking at the type signature. `IOE` allows an arbitrary MonadIO computation. `Error` is an error effect we use with our custom error `FsError`. It allows this function to fail with `FsError`. `interpret` implements the effect and lets us implement each path in `FileSystem`. Each path goes through `adapt`, which runs the IO action and converts any `IOException` into our typed `FsError` with `throwError`, so failures are returned through the `Error` effect instead of as untyped runtime exceptions.
 
 \begin{code}
 newtype FsError = FsError String deriving Show
@@ -77,7 +77,7 @@ writeAndReadExampleFile = do
   readFile' "/tmp/effectful-example.txt"
 \end{code}
 
-Use functions `runEff`, `runError` with our interpreter `runFileSystemIO` and the function that has the `FileSystem` effect in the type signature, `writeAndReadExampleFile`. If you run this in `main`, you will see it write a file, then reads the data from file and try to print it to stdout.
+We run the effect by taking off one interpreter at a time. `runFileSystemIO` executes the `FileSystem` effect, `runError @FsError` executes the `Error` effect, and `runEff` executes `IOE` to get back to plain `IO`. The `@FsError` type application tells `runError` which error type to handle, since it would otherwise be ambiguous. `runError` turns a computation into `Either (CallStack, FsError) a`: a `Right` on success, or a `Left` carrying the error along with the call stack from where it was thrown. We pattern match on that in `report`, using `prettyCallStack` to render the stack as readable text. If you run this in `main`, it writes a file, reads the data back, and prints it to stdout.
 
 \begin{code}
 testMain :: IO ()
@@ -93,7 +93,7 @@ testMain = do
         putStr $ "Read back:\n" <> contents
 \end{code}
 
-Now we define a second interpreter for the same effect. This treats the file system as a pure Map data structure. `reinterpret` allows us to run an internal effect that does not exist outside of this function. In this case it is a `State` effect.
+Now we define a second interpreter for the same effect. This treats the file system as a pure Map data structure. `reinterpret` allows us to run an internal effect that does not exist outside of this function. In this case it is a `State` effect, which is what we need to thread the in-memory `Map` through each read and write in place of the disk. Because the file system only shows up as an effect in the type signature, we can swap in this pure interpreter and run the exact same program with no IO at all. This makes effectful code easier to test.
 
 \begin{code}
 runFileSystemPure
@@ -194,8 +194,9 @@ writeReadLogExampleFile = do
   result <- readFile' "/tmp/effectful-example2.txt"
   logMsg result
   pure result
-
 \end{code}
+
+Now this function needs two effects, so we run it through two interpreters: `runLoggerIO` and `runFileSystemIO` ahead of `runError` and `runEff`, and each one removes its effect off the stack until it reaches `IO`.
 
 \begin{code}
 testLoggerEffect :: IO ()
@@ -207,7 +208,11 @@ testLoggerEffect = do
       putStrLn $ "File system error: " <> err <> "\n" <> prettyCallStack callStack
     Right contents ->
       putStr $ "Read back:\n" <> contents
+\end{code}
 
+`main` ties the three examples together.
+
+\begin{code}
 main :: IO ()
 main = do
   testMain
@@ -215,4 +220,22 @@ main = do
   testLoggerEffect
 \end{code}
 
-Try running compiling and running this code locally. You can find the source code [here](https://github.com/mchaver/mchaver.com/tree/master/posts/2026-06-3-babys-first-effects-with-haskell-effectful.lhs).
+Running the program prints each the following:
+
+```
+== runFileSystemIO (real disk) ==
+Read back:
+Hello from Effectful!
+
+== runFileSystemPure (in-memory) ==
+Read back:
+Hello from Effectful!
+
+== runFileSystemIO + runLoggerIO ==
+[log] Hello from Effectful with FileSystem and Logger!
+
+Read back:
+Hello from Effectful with FileSystem and Logger!
+```
+
+Try compiling and running this code locally. You can find the source code [here](https://github.com/mchaver/mchaver.com/tree/master/posts/2026-06-03-babys-first-effects-with-haskell-effectful.lhs).
