@@ -7,7 +7,7 @@ tags: haskell, effects
 
 In this tutorial, we are going to build a simple file read and write function and a log function to explore how to use effects in Haskell.
 
-For much of my work with Haskell, I've used the [ReaderT Design Pattern](https://academy.fpblock.com/blog/2017/06/readert-design-pattern/) to pass around configs, mutable references, database connections, etc. to different parts of the executable. It's a nice, simple pattern and good for smaller exectuables. It is still something I will use, but for larger projects, it is nice to have stricter control over what can happen in certain functions and encode that in the types.
+For much of my work with Haskell, I've used the [ReaderT Design Pattern](https://academy.fpblock.com/blog/2017/06/readert-design-pattern/) to pass around configs, mutable references, database connections, etc. to different parts of the executable. It's a nice, simple pattern and good for smaller executables. It is still something I will use, but for larger projects, it is nice to have stricter control over what can happen in certain functions and encode that in the types.
 
 That's where the effects come in. The idea is to encode the effects in a function's type signature and allow it to perform actions like reading or writing a file. [effectful](https://hackage-content.haskell.org/package/effectful) is a nice Haskell library for effects. The author has written a [document](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) for dynamic effects. However, it is not a complete tutorial. I want to fill in the gaps with this tutorial to give the reader a compilable program.
 
@@ -31,7 +31,7 @@ import qualified Data.Map.Strict as Map
 import qualified System.IO as IO
 \end{code}
 
-Then we define a system of effects as data constructors. The type synonym `type instance DispatchOf FileSystem = Dynamic` marks `FileSystem` as dynamically dispatched, which means we can give it more than one interpretation at run time. We will give it two interpretations in this tutorial.
+Then we define a system of effects as data constructors. The type family instance `type instance DispatchOf FileSystem = Dynamic` marks `FileSystem` as dynamically dispatched, which means we can give it more than one interpretation at run time. We will give it two interpretations in this tutorial.
 
 \begin{code}
 data FileSystem :: Effect where
@@ -196,7 +196,7 @@ writeReadLogExampleFile = do
   pure result
 \end{code}
 
-Now this function needs two effects, so we run it through two interpreters: `runLoggerIO` and `runFileSystemIO` ahead of `runError` and `runEff`, and each one removes its effect off the stack until it reaches `IO`.
+Now this function needs two effects, so we run it through two interpreters: `runLoggerIO` and `runFileSystemIO`, ahead of `runError` and `runEff`. Each one removes its effect from the stack until it reaches `IO`.
 
 \begin{code}
 testLoggerEffect :: IO ()
@@ -220,7 +220,7 @@ main = do
   testLoggerEffect
 \end{code}
 
-Running the program prints each the following:
+Running the program prints the following:
 
 ```
 == runFileSystemIO (real disk) ==
