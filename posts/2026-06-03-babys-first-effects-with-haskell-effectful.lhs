@@ -5,11 +5,11 @@ state: developing
 tags: haskell, effects
 ---
 
-`effectful` is a nice Haskell library for effects. The main advantage over a traditional Monad stack is it allows tha subset of effects that a particular function uses. That way if you try to use an effect that is not allow, it will throw an error.
+For much of my work with Haskell, I've used the [ReaderT Design Pattern](https://academy.fpblock.com/blog/2017/06/readert-design-pattern/) to pass around configs, mutable references, database connections, etc. to different parts of the executable. It a nice, simple pattern and good for smaller exectuables in Haskell. It is still something I will use, but for larger projects, it is nice to have stricter control over what can happen in certain functions and encode that in the types.
 
-https://academy.fpblock.com/blog/2017/06/readert-design-pattern/
+That's where the effects come in. The idea is to encode the effects in a function's type signature and allow it to perform actions like reading or writing a file. [effectful](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) is a nice Haskell library for effects. The author has included a tutorial at [effectful](https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html) for dynamic effects. It is a nice start, but missing all the pieces for a compilable program so I want to fill in the gaps with this tutorial.
 
-The general idea is you define systemd of effects as data constructors. Then you define how those effects are interpreted. You can have multiple interpretations.
+Let's start by setting up the GHC language extensions and imports we are going to use. 
 
 \begin{code}
 {-# LANGUAGE DataKinds #-}
@@ -27,7 +27,11 @@ import Effectful.State.Static.Local (get, modify, runState)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified System.IO as IO
+\end{code}
 
+Then we define a system of effects as data constructors. Dynamic means the effect system can have multiple interpretations.
+
+\begin{code}
 newtype FsError = FsError String deriving Show
 
 data FileSystem :: Effect where
@@ -37,7 +41,7 @@ data FileSystem :: Effect where
 type instance DispatchOf FileSystem = Dynamic
 \end{code}
 
-with the use of `send`, you turn the data constructors in functions.
+With the use of `send`, we can turn the data constructors into functions.
 
 \begin{code}
 readFile' :: (FileSystem :> es) => FilePath -> Eff es String
@@ -47,7 +51,7 @@ writeFile' :: (FileSystem :> es) => FilePath -> String -> Eff es ()
 writeFile' path contents = send (WriteFile path contents)
 \end{code}
 
-then you define an interpreter for the system of effects. this gives an IO operation to each effect in the system
+We define an interpreter for the system of effects. This gives an IO operation to each effect in the system.
 
 \begin{code}
 runFileSystemIO
@@ -62,23 +66,22 @@ runFileSystemIO = interpret $ \_ eff ->
     adapt m = liftIO m `catchIO` \e -> throwError . FsError $ show e
 \end{code}
 
+Then we write a simple function that requires the FileSystem of effects and write and reads from a text.
 
-then we can write a simple function that requires the FileSystem of effects and write and reads from a text
 \begin{code}
-program :: (FileSystem :> es) => Eff es String
-program = do
+writeAndReadExampleFile :: (FileSystem :> es) => Eff es String
+writeAndReadExampleFile = do
   writeFile' "/tmp/effectful-example.txt" "Hello from Effectful!\n"
   readFile' "/tmp/effectful-example.txt"
 \end{code}
 
-now we can combine the interpreter of an effect system, with a function that expects that affect sysem
+Use functions `runEff`, `runError` with our interpreter `runFileSystemIO` and the function that has the `FileSystem` effect in the type signature, `writeAndReadExampleFile`. If you run this in `main`, you will see it write a file, the read the data from file and try to print it to stdout.
 
 \begin{code}
-
 testMain :: IO ()
 testMain =
   putStrLn "== runFileSystemIO (real disk) =="
-  ioResult <- runEff . runError @FsError . runFileSystemIO $ program
+  ioResult <- runEff . runError @FsError . runFileSystemIO $ writeAndReadExampleFile
   report ioResult
   where
     report res = case res of
@@ -86,5 +89,77 @@ testMain =
         putStrLn $ "File system error: " <> err <> "\n" <> prettyCallStack callStack
       Right contents ->
         putStr $ "Read back:\n" <> contents
+\end{code}
 
+Now we define a second interpreter for the same effect. This treats the file system as a pure Map data structure.
+
+\begin{code}
+runFileSystemPure
+  :: (Error FsError :> es)
+  => Map FilePath String
+  -> Eff (FileSystem : es) a
+  -> Eff es (a, Map FilePath String)
+runFileSystemPure fs0 = reinterpret (runState fs0) $ \_ eff ->
+  case eff of
+    ReadFile path -> do
+      fs <- get
+      case Map.lookup path fs of
+        Just contents -> pure contents
+        Nothing       -> throwError . FsError $ "no such file: " <> path
+    WriteFile path contents -> modify (Map.insert path contents)
+\end{code}
+
+And an IO function for running the pure effect in main.
+
+\begin{code}
+testPureEffect :: IO ()
+testPureEffect = do
+  putStrLn "\n== runFileSystemPure (in-memory) =="
+  let pureResult = runPureEff . runError @FsError . runFileSystemPure Map.empty $ program
+  report (fmap fst pureResult)
+\end{code}
+
+In order to show what error messages look like when you include an effect that is not included in the type signature, we will create a second effect system. Following the patterns from above, this should be pretty straightforward. Define the constructor, make the system dynamic, add a function for the constructor, then create an interpreter function.
+
+\begin{code}
+data Logger :: Effect where
+  LogMsg :: String -> Logger m ()
+
+type instance DispatchOf Logger = Dynamic
+
+logMsg :: (Logger :> es) => String -> Eff es ()
+logMsg msg = send (LogMsg msg)
+
+runLoggerIO :: (IOE :> es) => Eff (Logger : es) a -> Eff es a
+runLoggerIO = interpret $ \_ (LogMsg msg) -> liftIO (putStrLn ("[log] " <> msg))
+\end{code}
+
+\begin{code}
+-- uncomment this code to see compiler error
+-- this cannot compile because Logger is not part of the type signature
+-- writeAndReadExampleFileBroken :: (FileSystem :> es) => Eff es String
+-- writeAndReadExampleFileBroken = do
+--   writeFile' "/tmp/effectful-example.txt" "Hello from Effectful with FileSystem and Logger!\n"
+--   result <- readFile' "/tmp/effectful-example.txt"
+--   logMsg result
+--   pure result
+\end{code}
+
+In order to make it compile, we need to add Logger to the type signature.
+
+\begin{code}
+writeAndReadExampleFile :: (FileSystem :> es) => Eff es String
+writeAndReadExampleFile = do
+  writeFile' "/tmp/effectful-example2.txt" "Hello from Effectful with FileSystem and Logger!\n"
+  result <- readFile' "/tmp/effectful-example2.txt"
+  logMsg result
+  pure result
+
+\end{code}
+
+\begin{code}
+main :: IO ()
+main = do
+  testMain
+  writeAndReadExampleFile
 \end{code}
