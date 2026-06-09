@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - GHC Runtime - Stack and Heap</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>GHC Runtime - Stack and Heap</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-09</div>
+  <div class="post-tags-line">
+    <a class="kind kind-reference" href="../kinds/reference.html">reference</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#general-review-of-heap-and-stack" id="toc-general-review-of-heap-and-stack">General Review of Heap and
+Stack</a>
+<ul>
+<li><a href="#stack" id="toc-stack">Stack</a></li>
+<li><a href="#heap" id="toc-heap">Heap</a></li>
+</ul></li>
+<li><a href="#features-of-the-ghc-runtime-system" id="toc-features-of-the-ghc-runtime-system">Features of the GHC Runtime
+system</a></li>
+<li><a href="#ghc-runtime-heap-and-stack" id="toc-ghc-runtime-heap-and-stack">GHC Runtime Heap and Stack</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>Stack and heap are important data structures for program execution.
+First we will review the general design of stack and heap <a href="https://stackoverflow.com/a/80113">[5]</a>, <a href="https://stackoverflow.com/a/79936">[6]</a>.</p>
+<h2 id="general-review-of-heap-and-stack">General Review of Heap and
+Stack</h2>
+<p>Static object reside in the compiled code and are not moved. Dynamic
+objects reside in the heap and may be moved by a garbage collector (if
+that is part of the programming language).</p>
+<h3 id="stack">Stack</h3>
+<ul>
+<li>stored in RAM</li>
+<li>static allocation</li>
+<li>last in first out (LIFO) structure</li>
+<li>faster to allocate in comparison to heap</li>
+<li>attached to a thread, each thread gets a stack, stack deallocates
+when thread is exited</li>
+<li>size is set when thread is allocated</li>
+<li>pointer adjustment to free a block</li>
+<li>stores local data, return addresses, and used for parameter
+passing</li>
+<li>very large allocations can cause stack overflow</li>
+<li>usually has a maximum size when the program starts</li>
+<li>each byte in the stack tends to be reused frequently, can be mapped
+to the processor’s cache</li>
+<li>use stack if you exactly how much data there is before compiling and
+it is not too large</li>
+</ul>
+<h3 id="heap">Heap</h3>
+<ul>
+<li>stored in RAM</li>
+<li>dynamic allocation</li>
+<li>in C++, variables on the heap must be destroyed manually before
+falling out of scope with <code>delete</code>, <code>delete[]</code> or
+<code>free</code></li>
+<li>slower to allocate than stack</li>
+<li>size is set on application startup but can grow as needed, space
+reclaimed on application exit</li>
+<li>used on demand to allocate a block of data for use by the
+program</li>
+<li>may encounter fragmentation when there are lots of allocations and
+deallocations</li>
+<li>data created on the heap will be pointed to by pointers and
+allocated with <code>new</code> (C++) or <code>malloc</code>
+(C/C++)</li>
+<li>allocation failures if too big of a buffer is requested to be
+allocated</li>
+<li>can cause memory leaks</li>
+<li>generally needs be multi-threading safe (this slows down
+performance)</li>
+<li>use heap if you don’t know how much memory you need at runtime or
+allocate a lot of data</li>
+</ul>
+<h2 id="features-of-the-ghc-runtime-system">Features of the GHC Runtime
+system</h2>
+<ul>
+<li>knows how to raise an exception when you call
+<code>error</code></li>
+<li>code to allocate <code>Array#</code></li>
+<li>implements <code>takeMVar#</code></li>
+<li>storage manager</li>
+<li>Multi-generational garbage collector with copying and compacting
+strategies</li>
+<li>user-space scheduler for Haskell threads</li>
+<li>Haskell threads across multiple CPUs</li>
+<li>allows Haskell threads to call foreign functions in separate OS
+threads</li>
+<li>heap-profiling</li>
+<li>time-profiling</li>
+<li>code coverage</li>
+<li>Software Transactional Memory (STM)</li>
+</ul>
+<h2 id="ghc-runtime-heap-and-stack">GHC Runtime Heap and Stack</h2>
+<p>Objects on the stack and heap have almost the same structure. Each
+object starts with a header, which points to an info table with a
+closure, and then each type of object has its own payload.</p>
+<p>Stack frame info tables have one extra field than heap info tables,
+SRT field, which points to the static reference that has information
+about what static objects are referenced by the closure.</p>
+<p>There is one difference between heap object payloads and stack object
+payloads. If a heap object payload has pointers and non-pointers, it
+will list all the pointers before all of the non-pointers. Stack frame
+objects may have mixed order pointers and non-pointers.</p>
+<h4 id="objects">Objects</h4>
+<ul>
+<li>header: has an info pointer that points to the info table for a
+closure. In profiling it also has who created the closure.</li>
+<li>payload: depends on object type, may include: arity, pointers,
+non-pointers, size, closure, etc.</li>
+</ul>
+<h4 id="info-table">Info Table</h4>
+<p>Contains all the information that runtime needs to know about
+closures.</p>
+<ul>
+<li>SRT (stack frame only): information about what static objects are
+referenced by the closure</li>
+<li>Layout Type: pointers-first layout (number of pointers and
+non-pointers) or bitmap layout (small or large)</li>
+<li>Closure Type: function, thunk, constructor, etc.</li>
+<li>SRT Bitmap: garbage collection of Constanct Applicative Forms
+(CAFs), static closure that is a thunk,
+e.g. <code>squares = map square [1..]</code></li>
+<li>Entry Code: code that will evaluate the closure. However, in the
+case of functions, the entry code will apply the function to the
+arguments given in registers or on the stack.</li>
+</ul>
+<h4 id="type-of-objects">Type of Objects</h4>
+<p>List of object names and their payload structures. All objects start
+with a header and are then followed by a payload (structure differs
+between objects).</p>
+<ul>
+<li><p>Data Constructors: pointers-first layout (header, pointers,
+non-pointers)</p></li>
+<li><p>Function Closures: dynamic and static (header, pointers,
+non-pointers)</p></li>
+<li><p>Thunks: object not in normal form (header, empty, pointers,
+non-pointers)</p></li>
+<li><p>Selector Thunks (dynamically allocated): entry code performs
+selection operation from a data constructor drawn from a
+single-constructor type (header, selectee pointer)</p></li>
+<li><p>Partial Application: function with too few arguments (header,
+arity, number of words, function closure, payload)</p></li>
+<li><p>Generic Application: application of function to given arguments
+(header, arity, number of words, function closure, payload)</p></li>
+<li><p>Stack Application: computation of a thunk that was suspended mid
+way through (header, size, closure, payload)</p></li>
+<li><p>Indirections: closure that points to other closure (header,
+target closure)</p></li>
+<li><p>Byte-code Objects: bits of code that can be interpreted by GHC’s
+byte-code interpreter</p></li>
+<li><p>Black Holes: thunk under evaluation by another thread (header,
+target closure)</p></li>
+<li><p>Arrays: non-pointer (header, bytes, array payload), pointer
+(header, pointers, size, array payload + card table)</p></li>
+<li><p>MVar: (header, header of queue, tail of queue, value)</p></li>
+<li><p>Weak pointer</p></li>
+<li><p>Stable name</p></li>
+<li><p>Thread State Objects: complete state of a thread, including its
+stack</p></li>
+<li><p>STM objects: used by STM library: <code>TVAR_WAIT_QUEUE</code>,
+<code>TVAR</code>, <code>TREC_CHUNK</code>,
+<code>TREC_HEADER</code></p></li>
+<li><p>Forwarding Pointers: the new location for an object that has been
+moved by the garbage collector</p></li>
+</ul>
+<h4 id="thread-state-object">Thread State Object</h4>
+<p>Every Thread State Object (<a href="https://ghc.haskell.org/trac/ghc/wiki/Commentary/Rts/Storage/HeapObjects?redirectedfrom=Commentary/Rts/HeapObjects#ThreadStateObjects">TSO</a>)
+has a stack. TSOs are ordinary objects that live in the heap and can
+take advantage of existing allocation and garbage collection to manage
+them. Garbage collection can detect when a blocked thread is unreachable
+and make it never runnable again.</p>
+<h4 id="boxed-and-lifted-types">Boxed and Lifted Types</h4>
+<ul>
+<li><p>Lifted type contains bottom <code>_|_</code></p></li>
+<li><p>Unlifted type contains does not contain bottom</p></li>
+<li><p>Boxed type is represented by a pointer to an object on the
+heap</p></li>
+<li><p>Unboxed type represents a value (char, double, float, integer,
+etc.)</p></li>
+</ul>
+<p><code>Int</code> is boxed. <code>Int#</code> is unboxed. Unboxed
+types are suffixed with a <code>#</code>. The representation of bottom
+<code>_|_</code> is a pointer and when evaluated it will throw an
+exception or enter an infinite loop.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><p><a href="http://ezyang.com/jfp-ghc-rts-draft.pdf">[1] Edward Z.
+Yang :: The GHC Runtime System</a></p></li>
+<li><p><a href="https://ghc.haskell.org/trac/ghc/wiki/Commentary/Rts/Storage/HeapObjects">[2]
+GHC Commentary :: The Layout of Heap Objects</a></p></li>
+<li><p><a href="https://ghc.haskell.org/trac/ghc/wiki/Commentary/Rts/Storage/Stack">[3]
+GHC Commentary :: The Layout of the Stack</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/stm">[4] Hackage ::
+stm</a></p></li>
+<li><p><a href="https://stackoverflow.com/a/79936">[5] Stack Overflow ::
+Brian R. Bondy :: What and where are the stack and heap?</a></p></li>
+<li><p><a href="https://stackoverflow.com/a/80113">[6] Stack Overflow ::
+Jeff Hill :: What and where are the stack and heap?</a></p></li>
+<li><p><a href="https://takenobu-hs.github.io/downloads/haskell_ghc_illustrated.pdf">[7]
+Takenobu T. :: GHC (STG, Cmm, asm) illustrated</a></p></li>
+<li><p><a href="https://ghc.haskell.org/trac/ghc/wiki/Commentary/Rts">[8] The
+Glasgow Haskell Compiler :: GHC Commentary: The Runtime
+System</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Kinds in Haskell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Kinds in Haskell</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-19</div>
+  <div class="post-tags-line">
+    <a class="kind kind-reference" href="../kinds/reference.html">reference</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#constructors" id="toc-constructors">Constructors</a></li>
+<li><a href="#kind" id="toc-kind">Kind</a></li>
+<li><a href="#ghc-language-extensions" id="toc-ghc-language-extensions">GHC Language Extensions</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<h2 id="constructors">Constructors</h2>
+<ul>
+<li>type constructor arguments are types</li>
+<li>data constructor arguments are values of the specified types</li>
+</ul>
+<p>The keyword <code>data</code> declares a type constructor on the left
+hand side and a data constructor on the right hand side.
+<code>Bool</code> is a simple example. None of the constructors take
+arguments.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Bool</span> <span class="ot">=</span> <span class="dt">True</span> <span class="op">|</span> <span class="dt">False</span></span></code></pre></div>
+<p><code>Bool</code> is the type constructor and <code>True</code> and
+<code>False</code> are the data constructors.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">User</span> <span class="ot">=</span> <span class="dt">User</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> name ::</span> <span class="dt">String</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> age  ::</span> <span class="dt">Int</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  }</span></code></pre></div>
+<p>There is a type constructor <code>User</code> that takes no arguments
+and a data constructor <code>User</code> that takes a
+<code>String</code> and an <code>Int</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Maybe</span> a <span class="ot">=</span> <span class="dt">Nothing</span> <span class="op">|</span> <span class="dt">Just</span> a</span></code></pre></div>
+<p><code>Maybe</code> is a type constructor that takes a single
+argument, <code>Nothing</code> is a data constructor that takes no
+arguments and <code>Just</code> is a data constructor that takes one
+argument of type <code>a</code>. The type constructor of
+<code>Just 1</code> would be <code>Maybe Int</code>. The type for a data
+constructor maybe polymorphic (determined by the the type constructor)
+or fixed (using a type like <code>Int</code>, <code>Maybe String</code>,
+<code>(Int,String)</code>, etc.).</p>
+<h2 id="kind">Kind</h2>
+<p>A kind is the type of a type constructor. Ordinary types have the
+kind <code>*</code>. This means they do not need another type as an
+argument and can be directly related to a value. For example,
+<code>Int</code> can have values such as <code>0</code>, <code>1</code>,
+<code>2</code>, and <code>[Int]</code> can be <code>[0,1,2]</code>.
+These types are inhabited types. They have values.</p>
+<p>A type like <code>[]</code> or <code>Maybe</code> has the kind
+<code>* -&gt; *</code>. It needs to be given a type before it can be
+related to any values. These types are unihabited types. They do not
+have values. When we provide a type to these types, we can make
+inhabited types like <code>[Int]</code>, <code>[String]</code>,
+<code>Just Double</code> and they have values like <code>[0,1,2]</code>,
+<code>["hello","goodbye"]</code> and <code>[1.5,2.5,3.5]</code>.</p>
+<p>In <code>ghci</code> we can query the kind of a type with
+<code>:k</code>. <code>:k Int</code> returns <code>Int :: *</code>,
+<code>:k Maybe</code> returns <code>Maybe :: * -&gt; *</code>. Here are
+the kinds of some common types.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Nullary type constructors</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Int</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="dt">String</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">-- Unary type constructors</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>[]<span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="dt">Maybe</span><span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="dt">Vector</span><span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co">-- Unary type constructors applied to one type</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>[<span class="dt">Int</span>]<span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="dt">Maybe</span> <span class="dt">String</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="dt">Vector</span> <span class="dt">Int</span><span class="ot"> ::</span> <span class="op">*</span></span></code></pre></div>
+<p>There are more complicated kinds. We can even have partially applied
+kinds. <code>Either</code>, <code>(,)</code> and <code>(-&gt;)</code>
+all require two kinds <code>* -&gt; * -&gt; *</code>. If we give any of
+these only one type <code>Either String</code> or <code>(,) Int</code>
+then the kind is <code>* -&gt; *</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Binary type constructors</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Either</span><span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>(,)<span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ot">(-&gt;) ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="co">-- Binary type constructors applied to one type</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="dt">Either</span> <span class="dt">Int</span><span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>(,) <span class="dt">Int</span><span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>(<span class="ot">-&gt;</span>) <span class="dt">Int</span><span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">-- Binary type constructors applied to two types</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="dt">Either</span> <span class="dt">Int</span> <span class="dt">String</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>(,) <span class="dt">Int</span> <span class="dt">String</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>(<span class="dt">Int</span>,<span class="dt">String</span>)<span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>(<span class="ot">-&gt;</span>) <span class="dt">Int</span> <span class="dt">String</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">String</span><span class="ot"> ::</span> <span class="op">*</span></span></code></pre></div>
+<h4 id="what-to-remember-about-kinds">What to Remember about Kinds</h4>
+<ul>
+<li>Kinds are the type of a type constructor.</li>
+<li>Kinds represent the arity (number of parameters) of a type
+constructor.</li>
+<li>Kinds are a higher-order type operator.</li>
+<li><code>*</code> is the kind of an inhabited type. Inhabited types
+have values.</li>
+<li>All other kinds (<code>* -&gt; *</code>,
+<code>* -&gt; * -&gt; *</code>, <code>(* -&gt; *) -&gt; *</code>, etc.)
+are uninhabited types. Uninhabited types do not have values.</li>
+</ul>
+<h4 id="names-of-kinds">Names of Kinds</h4>
+<ul>
+<li><code>*</code> nullary type constructor.</li>
+<li><code>* -&gt; *</code> unary type constructor.</li>
+<li><code>* -&gt; * -&gt; *</code> binary type constructor.</li>
+<li><code>(* -&gt; *) -&gt; *</code> higher-order type constructor.</li>
+</ul>
+<h2 id="ghc-language-extensions">GHC Language Extensions</h2>
+<h4 id="datakinds">DataKinds</h4>
+<p>Allows promotion of data types to kind level. Promote datatype to be
+a kind and its data constructor to be a type constructor. Promoted
+constructors are prefixed with <code>'</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> <span class="dt">Nat</span> <span class="ot">=</span> <span class="dt">Zero</span> <span class="op">|</span> <span class="dt">Succ</span> <span class="dt">Nat</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">'Zero</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="dt">'Zero</span><span class="ot"> ::</span> <span class="dt">Nat</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">'Succ</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="dt">'Succ</span><span class="ot"> ::</span> <span class="dt">Nat</span> <span class="ot">-&gt;</span> <span class="dt">Nat</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> <span class="dt">List</span> a <span class="ot">=</span> <span class="dt">Nil</span> <span class="op">|</span> <span class="dt">Cons</span> a (<span class="dt">List</span> a)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">Nil</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="dt">'Nil</span><span class="ot"> ::</span> <span class="dt">List</span> a</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">Cons</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="dt">'Cons</span><span class="ot"> ::</span> a <span class="ot">-&gt;</span> <span class="dt">List</span> a <span class="ot">-&gt;</span> <span class="dt">List</span> a</span></code></pre></div>
+<p>You can see more uses of type constructors in these articles: <a href="../posts/2017-06-20-type-level-heterogeneous-list.html">Type-Level
+Heterogeneous List</a> and <a href="../posts/2017-06-22-type-level-list-search.html">Type-Level List
+Search</a>, and the <code>DataKinds</code> section in <a href="../posts/2016-05-22-phantom-types-and-gadts.html">Phantom Types and
+GADTs</a>.</p>
+<h4 id="polykinds">PolyKinds</h4>
+<p>Allows kind polymorphic types. This introduces kind variables. We can
+name a variable that has a particular kind signature in the type
+constructor and then apply it to a type in the data constructor.</p>
+<p>Assume we want to have a constructor for an <code>Int</code> that is
+contained in something but we do not care what the container is.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> <span class="dt">A</span> (<span class="ot">x ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span>) <span class="ot">=</span> <span class="dt">B</span> (x <span class="dt">Int</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">A</span> <span class="dt">Maybe</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="dt">A</span> <span class="dt">Maybe</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">A</span> []</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="dt">A</span> []<span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">let</span> x <span class="ot">=</span> <span class="dt">B</span> <span class="op">$</span> <span class="dt">Just</span> <span class="dv">1</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">let</span> y <span class="ot">=</span> <span class="dt">B</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>t x</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="ot">y ::</span> <span class="dt">A</span> <span class="dt">Maybe</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>t y</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="ot">y ::</span> <span class="dt">A</span> []</span></code></pre></div>
+<p><code>Data.Proxy</code> uses a <code>*</code> in the type constructor
+and ignores it in the data constructor.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> <span class="dt">KProxy</span> (<span class="ot">x ::</span> <span class="op">*</span>) <span class="ot">=</span> <span class="dt">KProxy</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">KProxy</span> <span class="dt">Int</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="dt">KProxy</span> <span class="dt">Int</span><span class="ot"> ::</span> <span class="op">*</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">KProxy</span> (<span class="dt">Int</span>,<span class="dt">String</span>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="dt">KProxy</span> (<span class="dt">Int</span>,<span class="dt">String</span>)<span class="ot"> ::</span> <span class="op">*</span></span></code></pre></div>
+<h4 id="typeoperators">TypeOperators</h4>
+<p>Allows the use and definition of of types with operator names
+(symbols) like <code>(+)</code>, <code>(:&gt;)</code>,
+<code>:&lt;|&gt;</code>, <code>.:</code>, etc.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> a <span class="op">+</span> b <span class="ot">=</span> <span class="dt">Plus</span> a b</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>t <span class="dt">Plus</span> <span class="dv">1</span> <span class="dv">2</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="dt">Plus</span> <span class="dv">1</span> <span class="dv">2</span><span class="ot"> ::</span> (<span class="dt">Num</span> b, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="op">+</span> b</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>t <span class="dt">Plus</span> <span class="dv">1</span> <span class="st">&quot;123&quot;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="dt">Plus</span> <span class="dv">1</span> <span class="st">&quot;123&quot;</span><span class="ot"> ::</span> (<span class="dt">Data.String.IsString</span> b, <span class="dt">Num</span> a) <span class="ot">=&gt;</span> a <span class="op">+</span> b</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">type</span> <span class="dt">Foo</span> <span class="ot">=</span> <span class="dt">Int</span> <span class="op">+</span> <span class="dt">Bool</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="op">:</span>k <span class="dt">Foo</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="dt">Foo</span><span class="ot"> ::</span> <span class="op">*</span></span></code></pre></div>
+<h4 id="typeintype">TypeInType</h4>
+<p>Allows kind declaration and operations to be as descriptive as types:
+explicit quantification over kind variables, higher-rank kinds, type
+synonyms and families in kinds, etc.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#ghc-flag--XDataKinds">GHC
+Users Guide :: DataKinds</a></p></li>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#ghc-flag--XPolyKinds">GHC
+Users Guide :: PolyKinds</a></p></li>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#ghc-flag--XTypeInType">GHC
+Users Guide :: TypeInType</a></p></li>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#ghc-flag--XTypeOperators">GHC
+Users Guide :: TypeOperators</a></p></li>
+<li><p><a href="https://wiki.haskell.org/Constructor">Haskell Wiki ::
+Constructor</a></p></li>
+<li><p><a href="https://wiki.haskell.org/Kind">Haskell Wiki ::
+Kind</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Linux Network Tools - cURL</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Linux Network Tools - cURL</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Linux Network Tools</div>
+  <ol>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-1.html">Linux Network Tools - Netcat</a></li>
+    
+      <li><span class="current">Linux Network Tools - cURL</span></li>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-3.html">Linux Network Tools - netstat</a></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-13</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/linux.html">linux</a><a class="tag" href="../tags/networking.html">networking</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#curl-see-url" id="toc-curl-see-url">cURL (see
+URL)</a></li>
+<li><a href="#quick-reference" id="toc-quick-reference">Quick
+Reference</a></li>
+<li><a href="#flags" id="toc-flags">Flags</a></li>
+<li><a href="#examples" id="toc-examples">Examples</a>
+<ul>
+<li><a href="#get" id="toc-get">GET</a></li>
+<li><a href="#post" id="toc-post">POST</a></li>
+</ul></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<h2 id="curl-see-url">cURL (see URL)</h2>
+<p><code>curl</code> is a command line tool that uses libcurl to make
+URL requests. libcurl is a portable library that works across many
+platforms. It supports cookies, FTP, HTTP, HTTPS, proxy tunneling,
+etc.</p>
+<h2 id="quick-reference">Quick Reference</h2>
+<pre><code>$ curl -i -X GET http://localhost:7000/users
+
+$ curl -i -H &quot;Content-Type: application/json&quot; -d '{&quot;username&quot;:&quot;user&quot;,&quot;password&quot;:&quot;password&quot;}' -X POST http://localhost:7000/api/login
+
+$ curl -i -d '{&quot;username&quot;:&quot;user&quot;,&quot;password&quot;:&quot;password&quot;}' -X POST http://localhost:7000/users
+
+$ curl -i -d '{&quot;username&quot;:&quot;user&quot;,&quot;password&quot;:&quot;password&quot;}' -X PUT http://localhost:7000/users/1
+
+$ curl -X DELETE http://localhost/users/1</code></pre>
+<h2 id="flags">Flags</h2>
+<ul>
+<li><p><code>-#</code>, <code>--progress-bar</code>: display a simple
+progress bar.</p></li>
+<li><p><code>-b</code>, <code>--cookie &lt;file-or-pairs&gt;</code>:
+<code>curl -b "X=1; Y=Yes" http://localhost:7000/users</code>.</p></li>
+<li><p><code>-d</code>, <code>--data &lt;data&gt;</code>: request
+body.</p></li>
+<li><p><code>-F</code>, <code>--form &lt;name=content&gt;</code>: form
+data
+<code>curl -F "user=james;type=text/foo" http://localhost:7000/users</code>.</p></li>
+<li><p><code>-g</code>, <code>--globoff</code>: can include the
+<code>{}[]</code> characters in the URL.</p></li>
+<li><p><code>-H</code>, <code>--header &lt;header&gt;</code>: headers
+included with the request.</p></li>
+<li><p><code>-i</code>, <code>--include</code>: include HTTP headers in
+the output.</p></li>
+<li><p><code>-I</code>, <code>--head</code>: fetch headers only</p></li>
+<li><p><code>-L</code>, <code>--location</code>: if a header and 3XX
+response code is received, repeat the query to the new
+location.</p></li>
+<li><p><code>-v</code>, <code>--verbose</code>: provide more
+information.</p></li>
+<li><p><code>-X</code>, <code>--request</code>: DELETE, GET, HEAD,
+OPTIONS, POST, PUT. If not included will default to GET.</p></li>
+</ul>
+<h2 id="examples">Examples</h2>
+<h3 id="get">GET</h3>
+<p>We can make a simple GET request by typing the address and port after
+<code>curl</code>. <code>curl</code> assumes the request is GET if no
+explicit request type is given.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> curl localhost:7000</span></code></pre></div>
+<p>We can test it out by listening to port 7000 with <code>nc</code>,
+then make a connection with <code>curl</code> and type something in the
+command line window where <code>nc</code> is running.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc <span class="at">-l</span> 7000</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ex">GET</span> / HTTP/1.1</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Host:</span> localhost:7000</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ex">User-Agent:</span> curl/7.47.0</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">Accept:</span> <span class="pp">*</span>/<span class="pp">*</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="ex">Hello</span> cURL!</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> curl localhost:7000</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Hello</span> cURL!</span></code></pre></div>
+<h3 id="post">POST</h3>
+<p>Login request with JSON.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> curl <span class="at">-H</span> <span class="st">&quot;Content-Type:application/json&quot;</span>  <span class="at">-d</span> <span class="st">'{&quot;email&quot;:&quot;user@home.com&quot;,password:&quot;password&quot;}&quot;'</span> <span class="at">-X</span> POST http://localhost:3000/api/login</span></code></pre></div>
+<p>Make authenticated request.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> curl <span class="at">-H</span> <span class="st">&quot;X-Auth-Token: 123abc&quot;</span> <span class="at">-H</span> <span class="st">&quot;X-User-Id: 112233&quot;</span> <span class="at">-H</span> <span class="st">&quot;Content-Type:application/json&quot;</span>  <span class="at">-d</span> <span class="st">'{&quot;email&quot;:&quot;newuser@home.com&quot;,password:&quot;password&quot;}&quot;'</span> <span class="at">-X</span> POST http://localhost:3000/api/users</span></code></pre></div>
+<p>Login request for a GraphQL API.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> curl <span class="at">-H</span> <span class="st">&quot;Content-Type:application/json&quot;</span>  <span class="at">-d</span> <span class="st">'{&quot;query&quot;:&quot;mutation{login(email:&quot;user@home.com&quot;,password:&quot;password&quot;){token,user}}&quot;'</span> <span class="at">-X</span> POST http://localhost:3000/graphql</span></code></pre></div>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://curl.haxx.se/docs/manpage.html">curl.1 the man
+page</a></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-3.html">Linux Network Tools - netstat</a></li>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-1.html">Linux Network Tools - Netcat</a></li>
+    
+      <li><a href="../posts/2017-07-05-linux-command-line-3.html">Linux Command Line - find, which, whereis, grep, awk, sed</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

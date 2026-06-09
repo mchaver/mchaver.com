@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Haskell async and cancel</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Haskell async and cancel</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-08-07</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/async.html">async</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>I was asked to help debug the following code. It’s a simple example
+meant to be added to a bigger system. There are multiple asynchronous
+bits of code that update a value, but only one should be completed,
+furthermore a user event can override the other events. I was not clear
+on all the details, but the code I was given looked like this.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> <span class="dt">Main</span> <span class="kw">where</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Concurrent</span> (threadDelay)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Concurrent.Async</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  continuous <span class="ot">&lt;-</span> async <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    threadDelay <span class="op">$</span> (<span class="dv">6</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">^</span> (<span class="dv">6</span><span class="ot"> ::</span> <span class="dt">Int</span>))</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">print</span> (<span class="st">&quot;continuous&quot;</span><span class="ot"> ::</span> <span class="dt">String</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  userEvent <span class="ot">&lt;-</span> async <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">print</span> (<span class="st">&quot;userEvent&quot;</span><span class="ot"> ::</span> <span class="dt">String</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>    uninterruptibleCancel continuous</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> (<span class="st">&quot;pre-waitAnyCancel&quot;</span><span class="ot"> ::</span> <span class="dt">String</span>)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  _ <span class="ot">&lt;-</span> waitAnyCancel [continuous, userEvent]</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> (<span class="st">&quot;post-waitAnyCancel&quot;</span><span class="ot"> ::</span> <span class="dt">String</span>)</span></code></pre></div>
+<p>The output looks like this.</p>
+<pre><code>$&gt; stack runghc Main.hs
+&quot;userE&quot;vpernet-&quot;w
+aitAnyCancel&quot;
+Main.hs: thread killed</code></pre>
+<p>The mixed output from multiple threads is normal, but I was not
+expecting <code>Main.hs: thread killed</code>. After trying out various
+functions from the <code>async</code> library, I was able to make it run
+with <code>_ &lt;- waitAnyCatchCancel [continuous, userEvent]</code>.
+This cancels the other operations, but it also catches any errors.</p>
+<p>We did not realize that <code>cancel</code> works by throwing an
+error. That is what caused the first version to crash. The Hackage
+documentation states it clearly:</p>
+<pre><code>Cancel an asynchronous action by throwing the ThreadKilled exception to it, and 
+waiting for the Async thread to quit.</code></pre>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://hackage.haskell.org/package/async-2.1.1.1/docs/Control-Concurrent-Async.html">Hackage
+:: async</a></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

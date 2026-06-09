@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Lens Tutorial - SimpleLens</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Lens Tutorial - SimpleLens</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-07-12</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/lens.html">lens</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#motivation" id="toc-motivation">Motivation</a></li>
+<li><a href="#background" id="toc-background">Background</a></li>
+<li><a href="#simplelens" id="toc-simplelens">SimpleLens</a></li>
+<li><a href="#simplelens-helper-functions" id="toc-simplelens-helper-functions">SimpleLens helper
+functions</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>If you have been using Haskell for a while or browsed the packages in
+Hackage, there is a good chance that you have come across a package
+called <code>lens</code>. <code>lens</code> provides a large assorment
+of types and functions that simplify data access and updates in a
+functional way. It can help us solve many problems, but the size and
+scope of the package, as well as complex type signatures, make it
+challenging for new users to approach. Moreover, we may not need all of
+the tools from the <code>lens</code> package. I believe the best way to
+start using Lenses is Haskell is by implementing a simple subset.</p>
+<p>The first tool we want to discuss are Lenses. Lenses are functional
+references. Reference means that they point to parts of a value and
+allow us to access or modify them. Functional means that they provide
+composibility. Lenses abstract getters and setters for Haskell product
+types (records).</p>
+<h2 id="motivation">Motivation</h2>
+<p>First, we will review record update syntax in Haskell. You can follow
+along by starting up <code>ghci</code>. We define a simple data type,
+make a value of that type and update one of the rows.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> <span class="dt">User</span> <span class="ot">=</span> <span class="dt">User</span> {<span class="ot"> name ::</span> <span class="dt">String</span>,<span class="ot"> email ::</span> <span class="dt">String</span> } <span class="kw">deriving</span> (<span class="dt">Show</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> user <span class="ot">=</span> <span class="dt">User</span> <span class="st">&quot;Sanjay&quot;</span> <span class="st">&quot;owner@sanjay.com&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> updatedUser <span class="ot">=</span> user { email <span class="ot">=</span> <span class="st">&quot;admin@sanjay.com&quot;</span> }</span></code></pre></div>
+<p>That is relatively simple, but it becomes more complex when we
+introduce an embedded record type.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> <span class="dt">Phone</span> <span class="ot">=</span> <span class="dt">Phone</span> {<span class="ot"> phoneNumber ::</span> <span class="dt">String</span> } <span class="kw">deriving</span> (<span class="dt">Show</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">data</span> <span class="dt">Employee</span> <span class="ot">=</span> <span class="dt">Employee</span> {<span class="ot"> name ::</span> <span class="dt">String</span> ,<span class="ot"> phone ::</span> <span class="dt">Phone</span> } <span class="kw">deriving</span> (<span class="dt">Show</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> employee <span class="ot">=</span> <span class="dt">Employee</span> <span class="st">&quot;Guillermo&quot;</span> (<span class="dt">Phone</span> <span class="st">&quot;52-33-3333-7400&quot;</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> updatePhone <span class="ot">=</span> (phone employee) { phoneNumber <span class="ot">=</span> <span class="st">&quot;52-33-3333-1111&quot;</span> }</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> updateEmployee <span class="ot">=</span> employee { phone <span class="ot">=</span> updatePhone }</span></code></pre></div>
+<p>Lenses can help simplify this problem.</p>
+<h2 id="background">Background</h2>
+<p>There are two types from <code>base</code> that we need to understand
+before we begin with Lenses: <code>Identity</code> and
+<code>Const</code>. We will focus on how they work. Once we get to
+Lenses we understand their purpose.</p>
+<h4 id="data.functor.identity">Data.Functor.Identity</h4>
+<p>You may have come across the <code>id</code> function before. It
+takes a value and returns it. <code>id</code> is useful for when you are
+required to provide a function but do not want to change the value.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="fu">id</span> <span class="st">&quot;Hello world!&quot;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;Hello world!&quot;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="fu">id</span> (<span class="dv">1</span> <span class="op">+</span> <span class="dv">1</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span></span></code></pre></div>
+<p><code>Identity</code> is similar <code>id</code>, but it is a newtype
+that has one type parameter and has an instance of <code>Functor</code>.
+<code>Identity</code> is a container type like <code>Maybe</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">Identity</span> a <span class="ot">=</span> <span class="dt">Identity</span> {<span class="ot"> runIdentity ::</span> a }</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Identity</span> <span class="kw">where</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmap</span> <span class="ot">=</span> coerce</span></code></pre></div>
+<p>We can make the <code>Functor</code> instance for
+<code>Identity</code> a bit clearer.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Identity</span> <span class="kw">where</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmap</span> f (<span class="dt">Identity</span> i) <span class="ot">=</span> <span class="dt">Identity</span> <span class="op">$</span> f i</span></code></pre></div>
+<p>Try out <code>Identity</code> in <code>ghci</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> (<span class="op">++</span> <span class="st">&quot; world!&quot;</span>) <span class="op">&lt;$&gt;</span> <span class="dt">Identity</span> <span class="st">&quot;Hello&quot;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Identity</span> <span class="st">&quot;Hello world!&quot;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> runIdentity <span class="op">$</span> (<span class="op">+</span><span class="dv">1</span>) <span class="op">&lt;$&gt;</span> <span class="dt">Identity</span> <span class="dv">1</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span></span></code></pre></div>
+<h4 id="data.functor.const">Data.Functor.Const</h4>
+<p><code>const</code> is another common function. It takes two items,
+returns the first and discards the second.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="fu">const</span> <span class="dt">True</span> <span class="st">&quot;Hello world!&quot;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">True</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="fu">const</span> <span class="dv">1</span> <span class="dv">2</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="fu">const</span> <span class="st">&quot;Hello world!&quot;</span> <span class="dt">Nothing</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;Hello world!&quot;</span></span></code></pre></div>
+<p>Much like the relation between <code>id</code> and
+<code>Identity</code>, there are <code>const</code> and
+<code>Const</code>. <code>Const</code> has two type parameters
+<code>a</code> and <code>b</code>, but it only takes and returns a value
+of type <code>a</code>. <code>b</code> is a phantom type. <code>b</code>
+does not exist on the right side of the declaration and we do not
+provide a value of type <code>b</code>.</p>
+<p>The <code>Functor</code> instance for <code>Const</code> is also
+interesting. It ignores the function and does not apply it to value of
+type <code>a</code>. The returned valued remains constant.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">Const</span> a b <span class="ot">=</span> <span class="dt">Const</span> {<span class="ot"> getConst ::</span> a }</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Functor</span> (<span class="dt">Const</span> m) <span class="kw">where</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmap</span> _ (<span class="dt">Const</span> v) <span class="ot">=</span> <span class="dt">Const</span> v</span></code></pre></div>
+<p>We can try out <code>Const</code> in <code>ghci</code>.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="fu">not</span> <span class="op">&lt;$&gt;</span> <span class="dt">Const</span> <span class="dt">True</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Const</span> <span class="dt">True</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> getConst <span class="op">$</span> (<span class="op">+</span><span class="dv">1</span>) <span class="op">&lt;$&gt;</span> <span class="dt">Const</span> <span class="dv">1</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="dv">1</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> (<span class="op">++</span> <span class="st">&quot; world!&quot;</span>) <span class="op">&lt;$&gt;</span> <span class="dt">Const</span> <span class="st">&quot;Hello&quot;</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="dt">Const</span> <span class="st">&quot;Hello&quot;</span></span></code></pre></div>
+<h2 id="simplelens">SimpleLens</h2>
+<p>We will implment a simplified version of Lens called SimpleLens.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE RankNTypes #-}</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Functor.Const</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Functor.Identity</span></span></code></pre></div>
+<p><code>RankNTypes</code> implies <code>ExplicitForAll</code>. It
+allows us to use <code>forall</code> in a type alias. We import
+<code>Const</code> and <code>Identity</code> as we discussed above.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">SimpleLens</span> s a <span class="ot">=</span> <span class="kw">forall</span> f<span class="op">.</span> <span class="dt">Functor</span> f <span class="ot">=&gt;</span> (a <span class="ot">-&gt;</span> f a) <span class="ot">-&gt;</span> s <span class="ot">-&gt;</span> f s</span></code></pre></div>
+<p>A <code>SimpleLens</code> has two polymorphic types. <code>s</code>
+is a container type like <code>Maybe</code>, <code>[]</code>,
+<code>(,)</code>, <code>Either</code>, etc. <code>a</code> is the type
+in the container that we want to reference. For example,
+<code>SimpleLens Maybe Int</code>, <code>SimpleLens (,) String</code>,
+<code>SimpleLens Either Int</code>, etc.</p>
+<p>On the right hand side there is a type class restriction for
+<code>f</code>. We will need another container type <code>f</code> that
+has a Functor instance. This is where <code>Const</code> and
+<code>Identity</code> will be used.</p>
+<p>The first argument is <code>(a -&gt; f a)</code>, this a function
+that takes an <code>a</code> and returns <code>a</code> in the
+<code>f</code> container, which has a Functor instance. <code>a</code>
+is the type we are referencing that is contained by <code>s</code>, then
+we pass it an instance of <code>s</code> and we get <code>s</code>
+contained in <code>f</code>.</p>
+<p>Now we define our first lens. Person will be the <code>s</code> type
+and <code>String</code> for <code>name</code> and <code>Int</code> for
+<code>age</code> will be the <code>a</code> types in each
+<code>SimpleLens</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Person</span> <span class="ot">=</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Person</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> name ::</span> <span class="dt">String</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> age  ::</span> <span class="dt">Int</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Eq</span>,<span class="dt">Read</span>,<span class="dt">Show</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">-- expanded type signature</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">-- _name :: forall f. Functor f =&gt; (String -&gt; f String) -&gt; Person -&gt; f Person</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="ot">_name ::</span> <span class="dt">SimpleLens</span> <span class="dt">Person</span> <span class="dt">String</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>_name a_to_f_a (<span class="dt">Person</span> pName pAge) <span class="ot">=</span> (\ppName <span class="ot">-&gt;</span> <span class="dt">Person</span> ppName pAge) <span class="op">&lt;$&gt;</span> a_to_f_a pName</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="co">-- expanded type signature</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co">-- _age :: forall f. Functor f =&gt; (Int -&gt; f Int) -&gt; Person -&gt; f Person</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="ot">_age ::</span> <span class="dt">SimpleLens</span> <span class="dt">Person</span> <span class="dt">Int</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>_age a_to_f_a (<span class="dt">Person</span> pName pAge) <span class="ot">=</span> (\ppAge <span class="ot">-&gt;</span> <span class="dt">Person</span> pName ppAge) <span class="op">&lt;$&gt;</span> a_to_f_a pAge</span></code></pre></div>
+<p><code>_name</code> is a lens that focuses on the <code>name</code>
+record of <code>Person</code>. <code>a_to_f_a</code> is the function we
+need to pass in <code>(a -&gt; f a)</code> and we apply it directly to
+the name record of Person. <code>_age</code> is a lens that focuses on
+the <code>age</code> record of Person.</p>
+<p>By themselves we cannot do anything directly with <code>_name</code>
+or <code>_age</code>. We will need some helper functions. Before
+continuing, here is what we should now about <code>SimpleLens</code> so
+far:</p>
+<ul>
+<li><p><code>SimpleLens</code> is a type synonym.</p></li>
+<li><p><code>SimpleLens</code> has two polymorphic type parameters:
+<code>s</code> is a container type, <code>a</code> the type of a value
+contained in <code>s</code>.</p></li>
+<li><p>It takes <code>(a -&gt; f a)</code> and <code>s</code> and it
+returns <code>f s</code>. The container type <code>s</code> wrapped in a
+second container <code>f</code>.</p></li>
+<li><p><code>f</code> has a <code>Functor</code> instance.</p></li>
+</ul>
+<h2 id="simplelens-helper-functions">SimpleLens helper functions</h2>
+<h4 id="view">view</h4>
+<p>The first helper function we will implement is <code>view</code>.
+<code>view</code> takes a <code>SimpleLens</code> and an <code>s</code>
+then it returns an <code>a</code> from <code>s</code>. <code>view</code>
+functions as a getter. It does not change the value we are referencing,
+it just returns it. We will use <code>Const</code> to retrieve
+<code>a</code> from <code>s</code>.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- view :: ((a -&gt; f a) -&gt; s -&gt; f s) -&gt; s -&gt; a</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="ot">view ::</span> <span class="dt">SimpleLens</span> s a <span class="ot">-&gt;</span> s <span class="ot">-&gt;</span> a</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>view l <span class="ot">=</span> getConst <span class="op">.</span> l <span class="dt">Const</span></span></code></pre></div>
+<p>We can use <code>view</code> and <code>_name</code> together to get
+the <code>name</code> record from <code>Person</code>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> view _name <span class="op">$</span> <span class="dt">Person</span> <span class="st">&quot;Marina&quot;</span> <span class="dv">21</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;Marina&quot;</span></span></code></pre></div>
+<p>The way <code>view</code> and <code>_name</code> work together may
+still be a bit unclear. It is useful to write out what
+<code>view name</code> would look like.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- view _name</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ot">view_name ::</span> <span class="dt">Person</span> <span class="ot">-&gt;</span> <span class="dt">String</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>view_name (<span class="dt">Person</span> pName pAge) <span class="ot">=</span> getConst <span class="op">$</span> (\ppName <span class="ot">-&gt;</span> <span class="dt">Person</span> ppName pAge) <span class="op">&lt;$&gt;</span> <span class="dt">Const</span> pName</span></code></pre></div>
+<p>If you remember the definition of <code>Functor Const</code> the
+<code>f</code> function will not applied to the value inside
+<code>Const</code>. <code>(\ppName -&gt; Person ppName pAge)</code> will
+be ignored and <code>getConst $ Const pName</code> will be reduced to
+<code>pName</code>.</p>
+<p>To solidify our understanding of <code>view</code> and
+<code>SimpleLens</code>, we will repeat the same for age.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- view _age</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="ot">view_age ::</span> <span class="dt">Person</span> <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>view_age (<span class="dt">Person</span> pName pAge) <span class="ot">=</span> getConst <span class="op">$</span> (\ppAge <span class="ot">-&gt;</span> <span class="dt">Person</span> pName pAge) <span class="op">&lt;$&gt;</span> <span class="dt">Const</span> pAge</span></code></pre></div>
+<h4 id="set">set</h4>
+<p><code>set</code> is the setter helper function for
+<code>SimpleLens</code>. It takes a <code>SimpleLens</code>, an
+<code>a</code> that we want to insert in <code>s</code>, <code>s</code>
+and it returns <code>s</code> with the new <code>a</code> value.
+<code>set</code> uses <code>Identity</code> to apply the new
+<code>a</code> into <code>s</code> and return <code>s</code>.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- set :: ((a -&gt; f a) -&gt; s -&gt; f s) -&gt; a -&gt; s -&gt; s</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="ot">set ::</span> <span class="dt">SimpleLens</span> s a <span class="ot">-&gt;</span> a <span class="ot">-&gt;</span> s <span class="ot">-&gt;</span> s</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>set l b <span class="ot">=</span> runIdentity <span class="op">.</span> l (\_ <span class="ot">-&gt;</span> <span class="dt">Identity</span> b)</span></code></pre></div>
+<p>Here is an example.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> set _name <span class="st">&quot;Serena&quot;</span> <span class="op">$</span> <span class="dt">Person</span> <span class="st">&quot;Marina&quot;</span> <span class="dv">21</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Person</span> <span class="st">&quot;Serena&quot;</span> <span class="dv">21</span></span></code></pre></div>
+<p>Just like we did above, we explicit write out <code>set</code> with
+<code>_name</code> to make sure we understand how <code>set</code> works
+with a lens.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- set _name</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="ot">set_name ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Person</span> <span class="ot">-&gt;</span> <span class="dt">Person</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>set_name b (<span class="dt">Person</span> pName pAge) <span class="ot">=</span> runIdentity <span class="op">$</span> (\ppName <span class="ot">-&gt;</span> <span class="dt">Person</span> ppName pAge) <span class="op">&lt;$&gt;</span> <span class="dt">Identity</span> b</span></code></pre></div>
+<h4 id="over">over</h4>
+<p><code>over</code> is the same as <code>set</code> except instead of
+taking a value of <code>a</code>, it takes a function
+<code>(a -&gt; a)</code>. It allows us to modify an existing value
+inside <code>s</code></p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- over :: ((a -&gt; f a) -&gt; s -&gt; f s) -&gt; (a -&gt; a) -&gt; s -&gt; s</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="ot">over ::</span> <span class="dt">SimpleLens</span> s a <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> a) <span class="ot">-&gt;</span> s <span class="ot">-&gt;</span> s</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>over l f <span class="ot">=</span> runIdentity <span class="op">.</span> l (<span class="dt">Identity</span> <span class="op">.</span> f)</span></code></pre></div>
+<p>And a simple example.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> over _age (<span class="op">+</span><span class="dv">1</span>) <span class="op">$</span> <span class="dt">Person</span> <span class="st">&quot;Marina&quot;</span> <span class="dv">21</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Person</span> <span class="st">&quot;Marina&quot;</span> <span class="dv">22</span></span></code></pre></div>
+<p>Expanded form of <code>over _age</code>.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- over _age</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="ot">over_age ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Person</span> <span class="ot">-&gt;</span> <span class="dt">Person</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>over_age a_to_a (<span class="dt">Person</span> pName pAge) <span class="ot">=</span> runIdentity <span class="op">$</span> (\ppAge <span class="ot">-&gt;</span> <span class="dt">Person</span> pName ppAge) <span class="op">&lt;$&gt;</span> <span class="dt">Identity</span> (a_to_a pAge)</span></code></pre></div>
+<h4 id="simplelens-with-embedded-record">SimpleLens with embedded
+record</h4>
+<div class="sourceCode" id="cb23"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Phone</span> <span class="ot">=</span> </span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Phone</span> </span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> phoneNumber ::</span> <span class="dt">String</span> </span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Show</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Employee</span> <span class="ot">=</span> </span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Employee</span> </span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> employeeName ::</span> <span class="dt">String</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> employeePhone ::</span> <span class="dt">Phone</span> </span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Show</span>)</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="ot">_phoneNumber ::</span> <span class="dt">SimpleLens</span> <span class="dt">Phone</span> <span class="dt">String</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>_phoneNumber a_to_f_a (<span class="dt">Phone</span> phoneNum) <span class="ot">=</span> (\pPhoneNum <span class="ot">-&gt;</span> <span class="dt">Phone</span> pPhoneNum) <span class="op">&lt;$&gt;</span> a_to_f_a phoneNum</span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a><span class="ot">_employeePhone ::</span> <span class="dt">SimpleLens</span> <span class="dt">Employee</span> <span class="dt">Phone</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>_employeePhone a_to_f_a (<span class="dt">Employee</span> eName ePhone) <span class="ot">=</span> (\eEPhone <span class="ot">-&gt;</span> <span class="dt">Employee</span> eName eEPhone) <span class="op">&lt;$&gt;</span> a_to_f_a ePhone</span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a><span class="ot">_employeeName ::</span> <span class="dt">SimpleLens</span> <span class="dt">Employee</span> <span class="dt">String</span></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a>_employeeName a_to_f_a (<span class="dt">Employee</span> eName ePhone) <span class="ot">=</span> (\eEName <span class="ot">-&gt;</span> <span class="dt">Employee</span> eEName ePhone) <span class="op">&lt;$&gt;</span> a_to_f_a eName</span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span> </span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> matthias         <span class="ot">=</span> <span class="dt">Employee</span> <span class="st">&quot;Matthias&quot;</span> <span class="op">$</span> <span class="dt">Phone</span> <span class="st">&quot;123-345-8888&quot;</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>      matthiasNewPhone <span class="ot">=</span> set (_employeePhone <span class="op">.</span> _phoneNumber) <span class="st">&quot;222-333-1212&quot;</span> matthias</span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>      matthiasJr       <span class="ot">=</span> set (_employeePhone <span class="op">.</span> _phoneNumber) <span class="st">&quot;432-234-1177&quot;</span> <span class="op">$</span> over _employeeName (<span class="op">++</span> <span class="st">&quot; Jr.&quot;</span>) <span class="op">$</span> matthias</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> matthias</span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> matthiasNewPhone</span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> matthiasJr</span></code></pre></div>
+<p>Here is clean implementation of <a href="https://gist.github.com/mchaver/d00a4ea654c618cf16457d9de84f1a02">SimpleLens.hs</a>
+that you can use to play around with.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><p><a href="https://downloads.haskell.org/%7Eghc/latest/docs/html/users_guide/glasgow_exts.html#arbitrary-rank-polymorphism">GHC
+Users Guide :: 9.20. Arbitrary-rank polymorphism</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/Data.Functor.Const.html#Const">hackage
+:: base :: Data.Functor.Const</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/Data.Functor.Identity.html#Identity">hackage
+:: base :: Data.Functor.Identity</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

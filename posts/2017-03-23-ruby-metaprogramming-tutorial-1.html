@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Ruby Metaprogramming Tutorial Part 1 - Introduction and Background</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Ruby Metaprogramming Tutorial Part 1 - Introduction and Background</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-03-23</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/ruby.html">ruby</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#introduction" id="toc-introduction">Introduction</a></li>
+<li><a href="#background" id="toc-background">Background</a></li>
+</ul></nav>
+<h2 id="introduction">Introduction</h2>
+<p>Ruby provides a convenient syntax for metaprogramming but it is often
+unclear when other libraries are using metaprogramming</p>
+<p>Ruby is reflective, you can take a look at the properties of all
+objects.</p>
+<p>Ruby’s facilities for DSL authoring don’t change the nature of the
+language. Ruby’s metaprogramming facilities are inherently tied to Ruby
+syntax and semantics, and whatever you write has to be shunted into
+Ruby’s object model.</p>
+<p>The often repeated Ruby mantra is “Don’t Repeat Yourself” (DRY). In
+Ruby this is mainly achieved through the use of Metaprogramming.
+Metaprogramming is a technique that allows us to write code that returns
+code that we can use. We will start with a simple example.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="dt">Simple</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">def</span> hello</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">puts</span> <span class="st">&quot;Hello&quot;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">def</span> <span class="fu">method_missing</span>(name, <span class="op">*</span>args, <span class="op">&amp;</span>block)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">puts</span> <span class="st">&quot;tried to handle unknown method %s&quot;</span> <span class="op">%</span> name</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">unless</span> args<span class="at">.empty?</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">puts</span> <span class="st">&quot;it had arguments: %p&quot;</span> <span class="op">%</span> <span class="kw">[</span>args<span class="kw">]</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">end</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span>  </span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div>
+<p>We can try loading that class in <code>irb</code> and running a few
+methods on it.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>irb(main)<span class="op">:</span><span class="bn">013</span><span class="op">:</span><span class="dv">0</span><span class="op">&gt;</span> <span class="dt">Simple</span><span class="at">.new.hello</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">Hello</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">=&gt;</span> <span class="dv">nil</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>irb(main)<span class="op">:</span><span class="bn">014</span><span class="op">:</span><span class="dv">0</span><span class="op">&gt;</span> <span class="dt">Simple</span><span class="at">.new.goodbye</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>tried to handle unknown method goodbye</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">=&gt;</span> <span class="dv">nil</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>irb(main)<span class="op">:</span><span class="bn">015</span><span class="op">:</span><span class="dv">0</span><span class="op">&gt;</span> <span class="dt">Simple</span><span class="at">.new.goodmorning</span>(<span class="st">&quot;Julio&quot;</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>tried to handle unknown method goodmorning</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>it had <span class="wa">arguments:</span> <span class="kw">[</span><span class="st">&quot;Julio&quot;</span><span class="kw">]</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="op">=&gt;</span> <span class="dv">nil</span></span></code></pre></div>
+<p>The <code>method_missing</code> method catches any
+<code>method</code> that we attempt to call in an instance of the
+<code>Simple</code> that is not previously declared. If the method does
+not exist in <code>Simple</code> then <code>method_missing</code> will
+be called with all of the details of the non-existent method and print
+its values to the stdout.</p>
+<p>This provides us a way to handle methods we have not defined within
+in the class. We can use particular details about the method name,
+arguments or code block to decide what to do next.</p>
+<h2 id="background">Background</h2>
+<p>Before exploring Metaprogramming further, we need to understand the
+Ruby object system and introspection. In Ruby, we do everything in the
+context of an object. Even when we run <code>irb</code> and run code at
+the top level, we are actually working in <code>main</code> of class
+<code>Object</code>. At anytime you add methods to a ruby class or
+override existing methods.</p>
+<h4 id="class-and-instance-variables">class and instance variables</h4>
+<p>Class variables are available directly from a class to a class or an
+instance. Instance variables require making an instance with new and
+then the instance have access to the variables. Users only have direct
+access to exposed class and instance variables. However, you can still
+access private variables through <code>Object</code> methods. Class
+variables only have one value per class and subclass hierarchy.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="dt">Animal</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="ot">@@legs</span> <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">def</span> <span class="dv">self</span><span class="at">.legs</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="ot">@@legs</span> <span class="co"># class variable getter</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="fu">puts</span> <span class="dt">Animal</span><span class="at">.legs</span> <span class="co"># =&gt; 4</span></span></code></pre></div>
+<p>Even when you inherit a class with class variables and change the
+value in the subclass, the value update will be reflected in the parent
+class as well. The class variable is shared between the parent and the
+subclasses.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="dt">Dog</span> <span class="op">&lt;&lt;</span> <span class="dt">Animal</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="ot">@@legs</span> <span class="op">=</span> <span class="dv">4</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">puts</span> <span class="dt">Animal</span><span class="at">.legs</span> <span class="co"># =&gt; 4</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="fu">puts</span> <span class="dt">Dog</span><span class="at">.legs</span> <span class="co"># =&gt; 4</span></span></code></pre></div>
+<p>We will remake the dog class with its own class and instance
+variables. We expose the <code>@name</code> instance variable via
+<code>attr_accessor</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="dt">Dog</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="ot">@@legs</span> <span class="op">=</span> <span class="dv">4</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="ot">@name</span> </span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="ot">attr_accessor</span> <span class="wa">:name</span> <span class="co"># create getter and setter for Dog  </span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>d <span class="op">=</span> <span class="dt">Dog</span><span class="at">.new</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>d<span class="at">.name</span> <span class="op">=</span> <span class="st">&quot;Fido&quot;</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="fu">puts</span> d<span class="at">.instance_variables</span> <span class="co"># =&gt; [:@name]</span></span></code></pre></div>
+<h4 id="class-and-instance-methods">class and instance methods</h4>
+<p>Class methods are available without making an instance and require
+the <code>self</code> prefix. They cannot access instance variables.
+Instance variables are available after creating an instance with
+<code>new</code>. They can access class and instance variables.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="dt">Foo</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">def</span> <span class="dv">self</span><span class="at">.bar</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">puts</span> <span class="vs">'class method'</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">def</span> baz</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">puts</span> <span class="vs">'instance method'</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span></code></pre></div>
+<h4 id="include">include</h4>
+<p>The <code>include</code> statement mixes in a module into a class. It
+is a simple form of multiple inheritance and forms a “is-a”
+relationship. It makes its methods available to an instance of the class
+that includes it.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="cf">module</span> <span class="dt">Foo</span> </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">def</span> foo </span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">puts</span> <span class="st">&quot;Hello from Foo&quot;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="dt">Bar</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">include</span> <span class="dt">Foo</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="dt">Bar</span><span class="at">.new.foo</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="dt">Hello</span> from <span class="dt">Foo</span></span></code></pre></div>
+<h4 id="extend">extend</h4>
+<p>The <code>extend</code> statement makes a module’s methods to class.
+We can call the methods directly from the class without making a new
+instance.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="dt">Baz</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">extend</span> <span class="dt">Foo</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="dt">Baz</span><span class="at">.foo</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="dt">Hello</span> from <span class="dt">Foo</span></span></code></pre></div>
+<h4 id="self">self</h4>
+<p><code>self</code> is a contextual pointer. It points to the current
+object the program is located in. When we are in the top level of the
+file, we are located in the <code>main</code> object.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;</span> <span class="fu">puts</span> <span class="dv">self</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>main</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;</span> <span class="fu">puts</span> <span class="dv">self</span><span class="at">.class</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="dt">Object</span></span></code></pre></div>
+<p>When we declare a method at the top level, it becomes part of the
+<code>main</code> object. We can see that <code>:m</code> is a method of
+<code>main</code>.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="cf">def</span> m</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="fu">puts</span> <span class="dv">self</span><span class="at">.method</span>(<span class="wa">:m</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="op">=&gt;</span> <span class="co">#&lt;Method: Object#m&gt;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="dv">self</span><span class="at">.methods</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="op">=&gt;</span> <span class="kw">[</span><span class="wa">:m</span> <span class="op">...</span><span class="kw">]</span></span></code></pre></div>
+<p>In an object or module <code>self</code> is the current object.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode ruby"><code class="sourceCode ruby"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">class</span> <span class="cn">S</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">def</span> put_self</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">puts</span> <span class="dv">self</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">end</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;</span> <span class="cn">S</span><span class="at">.new.m</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&lt;S:0x007fad47294db0&gt;</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="cf">module</span> <span class="dt">Library</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">puts</span> <span class="dv">self</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="cf">end</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="dt">Library</span></span></code></pre></div>
+<h4 id="basicobject">BasicObject</h4>
+<p><code>BasicObject</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> is the parent object of
+all objects in Ruby. It can be used to create alternative object
+hierarchies in Ruby. The main hierarchy in Ruby is <code>Object</code>
+that includes <code>Kernel</code>. It provides a small number of
+methods.</p>
+<p>There are four callback methods that are useful for
+metaprogramming.</p>
+<ul>
+<li><code>method_missing</code></li>
+<li><code>singleton_method_added</code></li>
+<li><code>singleton_method_removed</code></li>
+<li><code>singleton_method_undefined</code></li>
+</ul>
+<h4 id="kernel">Kernel</h4>
+<p><code>Kernel</code><a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> provides a number of useful methods
+such as <code>Array</code>, <code>Hash</code>, <code>Integer</code>,
+<code>String</code>, <code>open</code>, <code>puts</code>, etc.
+<code>Kernel</code> is mixed into <code>Object</code> and
+<code>main</code> is of class type <code>Object</code> so all of these
+methods act as global methods in Ruby.</p>
+<p>These methods are useful for metaprogramming.</p>
+<ul>
+<li><code>eval</code></li>
+<li><code>exec</code></li>
+<li><code>lambda</code></li>
+<li><code>local_variables</code></li>
+</ul>
+<h4 id="object">Object</h4>
+<p><code>Object</code><a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> is the main object in the Ruby
+object hierarchy. It <code>include</code>s <code>Kernel</code> and is a
+child of <code>BasicObject</code>. <code>Object</code> has a large
+number of useful methods for metaprogramming.</p>
+<pre><code>define_singleton_method     extend                    instance_of? 
+instance_variable_defined?  instance_variable_get     instance_variable_set
+instance_variables          is_a?                     kind_of?
+method                      methods                   private_methods
+protected_methods           public_method             public_methods
+public_send                 remove_instance_variable  respond_to?
+respond_to_missing?         send</code></pre>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://ruby-doc.org/core-2.4.1/BasicObject.html">ruby-doc ::
+BasicObject</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://ruby-doc.org/core-2.4.1/Kernel.html">ruby-doc ::
+Kernel</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://ruby-doc.org/core-2.4.1/Object.html">ruby-doc ::
+Object</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+
+
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

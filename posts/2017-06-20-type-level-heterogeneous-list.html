@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Type-Level Heterogeneous List</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Type-Level Heterogeneous List</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-20</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/type-level.html">type-level</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>HList is a well designed package for type level heterogeneous lists.
+We will take a look at the main declaration to get more familiar with
+type level programmin in Haskell. If you are new to kinds in Haskell,
+start with <a href="../posts/2017-06-19-kinds-in-haskell.html">Kinds in
+Haskell</a> and <a href="../posts/2017-06-21-type-families.html">An
+Introduction to Type Families</a>. Then <a href="../posts/2017-06-22-type-level-list-search.html">Type-Level List
+Search</a>.</p>
+<p>Promote data types to to kind level. We want to use <code>[]</code>
+at the type level to operate over a list of types that we use to
+calculate the type signature.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DataKinds          #-}</span></span></code></pre></div>
+<p>Allow multiparameter typeclass instances
+<code>instance C (Either a String) where ...</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE FlexibleContexts   #-}</span></span></code></pre></div>
+<p>Allow typeclass instances for nested types
+<code>instance C (Maybe Int) where ...</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE FlexibleInstances  #-}</span></span></code></pre></div>
+<p>Allow <code>deriving instance</code> separated from the type
+declaration. It can be in the same file or another file.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE StandaloneDeriving #-}</span></span></code></pre></div>
+<p>Allow indexed and data type families. The instances of data families
+can be data types and newtypes.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeFamilies       #-}</span></span></code></pre></div>
+<p>Allow the use and definition of types with operator names.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeOperators      #-}</span></span></code></pre></div>
+<p><code>HList</code> is a list of inhabited types. They must be of kind
+<code>*</code>. <code>HNil</code> is an empty list of types.
+<code>HCons</code> is a constructor to concatentate to types.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="kw">family</span> <span class="dt">HList</span> (<span class="ot">l ::</span> [<span class="op">*</span>])</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="kw">instance</span> <span class="dt">HList</span> '[] <span class="ot">=</span> <span class="dt">HNil</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="kw">instance</span> <span class="dt">HList</span> (x '<span class="op">:</span> xs) <span class="ot">=</span> x <span class="ot">`HCons`</span> <span class="dt">HList</span> xs</span></code></pre></div>
+<p>With <code>deriving instance</code>, <code>Eq</code> and
+<code>Ord</code> are straightforward.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">deriving</span> <span class="kw">instance</span> <span class="dt">Eq</span> (<span class="dt">HList</span> '[])</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">deriving</span> <span class="kw">instance</span> (<span class="dt">Eq</span> x, <span class="dt">Eq</span> (<span class="dt">HList</span> xs)) <span class="ot">=&gt;</span> <span class="dt">Eq</span> (<span class="dt">HList</span> (x '<span class="op">:</span> xs))</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">deriving</span> <span class="kw">instance</span> <span class="dt">Ord</span> (<span class="dt">HList</span> '[])</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">deriving</span> <span class="kw">instance</span> (<span class="dt">Ord</span> x, <span class="dt">Ord</span> (<span class="dt">HList</span> xs)) <span class="ot">=&gt;</span> <span class="dt">Ord</span> (<span class="dt">HList</span> (x '<span class="op">:</span> xs))</span></code></pre></div>
+<p>Finally, we can iterate over the types to create an instance of
+<code>Show</code> and run a simple example.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Show</span> (<span class="dt">HList</span> '[]) <span class="kw">where</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">show</span> _ <span class="ot">=</span> <span class="st">&quot;H[]&quot;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> (<span class="dt">Show</span> e, <span class="dt">Show</span> (<span class="dt">HList</span> l)) <span class="ot">=&gt;</span> <span class="dt">Show</span> (<span class="dt">HList</span> (e '<span class="op">:</span> l)) <span class="kw">where</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">show</span> (<span class="dt">HCons</span> x l) <span class="ot">=</span> </span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="ch">'H'</span><span class="op">:</span><span class="ch">'['</span><span class="op">:</span>s <span class="ot">=</span> <span class="fu">show</span> l</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">in</span> <span class="st">&quot;H[&quot;</span> <span class="op">++</span> <span class="fu">show</span> x <span class="op">++</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>         (<span class="kw">if</span> s <span class="op">==</span> <span class="st">&quot;]&quot;</span> <span class="kw">then</span> s <span class="kw">else</span> <span class="st">&quot;,&quot;</span> <span class="op">++</span> s)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>         </span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="kw">infixr</span> <span class="dv">2</span> <span class="ot">`HCons`</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="ot">foo ::</span> <span class="dt">HList</span> '[<span class="dt">Char</span>, <span class="dt">String</span>, <span class="dt">Double</span>]</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>foo <span class="ot">=</span> <span class="ch">'Z'</span> <span class="ot">`HCons`</span> <span class="st">&quot;Zebra&quot;</span> <span class="ot">`HCons`</span> <span class="fl">2.5</span> <span class="ot">`HCons`</span> <span class="dt">HNil</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">print</span> foo</span></code></pre></div>
+<h2 id="references">References</h2>
+<ul>
+<li><p><a href="https://hackage.haskell.org/package/HList">Hackage ::
+HList</a></p></li>
+<li><p><a href="http://okmij.org/ftp/Haskell/HList-ext.pdf">Strongly
+Typed Heterogeneous Collections</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-28-improved-type-level-fizzbuzz.html">Improved Type-Level FizzBuzz</a></li>
+    
+      <li><a href="../posts/2018-12-16-type-level-fizzbuzz.html">A Preliminary Attempt at Type-Level FizzBuzz</a></li>
+    
+      <li><a href="../posts/2017-12-12-type-name-to-string.html">Haskell Type Names as Strings</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Haskell Network Programming - UDP Client and Server</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Haskell Network Programming - UDP Client and Server</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Haskell Network Programming</div>
+  <ol>
+    
+      <li><span class="current">Haskell Network Programming - UDP Client and Server</span></li>
+    
+      <li><a href="../posts/2017-06-12-haskell-network-programming-2.html">Haskell Network Programming - TCP Client and Server</a></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-12</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/networking.html">networking</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>Using the <a href="https://hackage.haskell.org/package/network">network</a> package
+we can build a low level UDP server and client.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Concurrent</span>        (forkIO, threadDelay)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Monad</span>             (forever)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.ByteString.Char8</span> <span class="kw">as</span> <span class="dt">C</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Network.Socket</span> <span class="kw">hiding</span>     (recv)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Network.Socket.ByteString</span> (recv, sendAll)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ot">runUDPServer ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>runUDPServer <span class="ot">=</span> <span class="kw">do</span> </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  addrinfos <span class="ot">&lt;-</span> getAddrInfo <span class="dt">Nothing</span> (<span class="dt">Just</span> <span class="st">&quot;127.0.0.1&quot;</span>) (<span class="dt">Just</span> <span class="st">&quot;7000&quot;</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> serveraddr <span class="ot">=</span> <span class="fu">head</span> addrinfos</span></code></pre></div>
+<p>It is important to remember to use <code>Datagram</code> to receive
+data via UDP. Then we can bind the socket to the address and wait to
+receive data.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>  sock <span class="ot">&lt;-</span> socket (addrFamily serveraddr) <span class="dt">Datagram</span> defaultProtocol</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  bind sock (addrAddress serveraddr)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="st">&quot;UDP server is waiting...&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  recv sock <span class="dv">4096</span> <span class="op">&gt;&gt;=</span> \message <span class="ot">-&gt;</span> <span class="fu">print</span> (<span class="st">&quot;UDP server received: &quot;</span> <span class="op">++</span> (C.unpack message))</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="st">&quot;UDP server socket is closing now.&quot;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  close sock</span></code></pre></div>
+<p>The client code is similar. We need to sned data via
+<code>Datagram</code> or the server will ignore it. Then we run
+<code>sendAll</code> with a <code>ByteString</code> and the server will
+receive the message.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">sendMessage ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>sendMessage s <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  addrinfos <span class="ot">&lt;-</span> getAddrInfo <span class="dt">Nothing</span> (<span class="dt">Just</span> <span class="st">&quot;127.0.0.1&quot;</span>) (<span class="dt">Just</span> <span class="st">&quot;7000&quot;</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> serveraddr <span class="ot">=</span> <span class="fu">head</span> addrinfos</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  sock <span class="ot">&lt;-</span> socket (addrFamily serveraddr) <span class="dt">Datagram</span> defaultProtocol</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  connect sock (addrAddress serveraddr)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  sendAll sock <span class="op">$</span> C.pack s</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  close sock</span></code></pre></div>
+<p>We run the server in a separate thread because <code>recv</code> is
+blocking. We add a few <code>threadDelay</code>s to make sure that the
+server has started up and that the <code>print</code>s from different
+threads do not occur at the same time. Otherwise, the messages might
+print at the same time and be illegible.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  _ <span class="ot">&lt;-</span> forkIO <span class="op">$</span> runUDPServer</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  threadDelay <span class="dv">1000000</span> <span class="co">-- wait one second</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  sendMessage <span class="st">&quot;Hello, world!&quot;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  threadDelay <span class="dv">1000000</span> <span class="co">-- wait one second</span></span></code></pre></div>
+<p>When <code>main</code> terminates all of the other threads in the
+program will terminate as well <a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/Control-Concurrent.html#g:12">[2]</a>.</p>
+<p>A real world UDP server will likely need to constantly receive
+requests. We can change the last line to use <code>forever</code>. It
+will repeatedly process incoming data.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">runUDPServerForever ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>runUDPServerForever <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  addrinfos <span class="ot">&lt;-</span> getAddrInfo <span class="dt">Nothing</span> (<span class="dt">Just</span> <span class="st">&quot;127.0.0.1&quot;</span>) (<span class="dt">Just</span> <span class="st">&quot;7000&quot;</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> serveraddr <span class="ot">=</span> <span class="fu">head</span> addrinfos </span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  sock <span class="ot">&lt;-</span> socket (addrFamily serveraddr) <span class="dt">Datagram</span> defaultProtocol</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  bind sock (addrAddress serveraddr)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  forever (<span class="kw">do</span> recv sock <span class="dv">4096</span> <span class="op">&gt;&gt;=</span> <span class="fu">print</span>)</span></code></pre></div>
+<h3 id="references">References</h3>
+<ul>
+<li><p><a href="https://hackage.haskell.org/package/network">[1] Hackage
+:: network</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/Control-Concurrent.html#g:12">[2]
+Hackage :: base :: Control.Concurrent :: Terminating the
+program</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2017-06-12-haskell-network-programming-2.html">Haskell Network Programming - TCP Client and Server</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

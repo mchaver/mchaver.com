@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Exploring Haskell - ByteString (Strict)</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Exploring Haskell - ByteString (Strict)</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-08</div>
+  <div class="post-tags-line">
+    <a class="kind kind-reference" href="../kinds/reference.html">reference</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#data.bytestring" id="toc-data.bytestring">Data.ByteString</a></li>
+<li><a href="#unpack-pragma" id="toc-unpack-pragma">UNPACK
+Pragma</a></li>
+<li><a href="#strict-bang" id="toc-strict-bang">Strict Bang</a></li>
+<li><a href="#data.int-and-integer" id="toc-data.int-and-integer">Data.Int and Integer</a></li>
+<li><a href="#word8" id="toc-word8">Word8</a></li>
+<li><a href="#ctype-pragma" id="toc-ctype-pragma">CTYPE Pragma</a></li>
+<li><a href="#boxed-and-unboxed-types" id="toc-boxed-and-unboxed-types">Boxed and Unboxed Types</a></li>
+<li><a href="#foreignptr" id="toc-foreignptr">ForeignPtr</a></li>
+<li><a href="#ghc.prim" id="toc-ghc.prim">GHC.Prim</a></li>
+<li><a href="#ioref" id="toc-ioref">IORef</a></li>
+<li><a href="#stref" id="toc-stref">STRef</a></li>
+<li><a href="#multvar" id="toc-multvar">MultVar</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>ByteString is one of the core GHC libraries (emphasis on GHC because
+it is not part of the <a href="https://www.haskell.org/onlinereport/haskell2010/">Haskell 2010
+Language Report</a> and I am not sure if it is compatible with other
+compilers like Hugs). The ByteString library is probably a dependency
+(directly or indirectly) for most Hackage libraries.
+<code>ByteString</code>s are highly efficient string types. A
+<code>ByteString</code> is a sequence of bytes (8-bit characters). There
+are strict (single large array) and lazy (call-by-need, good for
+streaming) varieties. For using the <code>ByteString</code> library, the
+Haddock documentation is good to get started. We will briefly look at
+some of the source code for strict <code>ByteString</code>s to get a
+general understanding of the implementation. While this level of
+understanding is not necessary for every day use of
+<code>ByteString</code>s, it should be useful for having a deeper
+understanding of the GHC compiler.</p>
+<h3 id="data.bytestring">Data.ByteString</h3>
+<p>Here is the definition of strict <code>ByteString</code> from <a href="https://hackage.haskell.org/package/bytestring-0.10.8.1/docs/src/Data-ByteString-Internal.html#ByteString">Data.ByteString</a>
+in version <code>0.10.8.1</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">ByteString</span> <span class="ot">=</span> <span class="dt">PS</span> <span class="ot">{-# UNPACK #-}</span> <span class="op">!</span>(<span class="dt">ForeignPtr</span> <span class="dt">Word8</span>) <span class="co">-- payload</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>                     <span class="ot">{-# UNPACK #-}</span> <span class="op">!</span><span class="dt">Int</span>                <span class="co">-- offset</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>                     <span class="ot">{-# UNPACK #-}</span> <span class="op">!</span><span class="dt">Int</span>                <span class="co">-- length</span></span></code></pre></div>
+<h3 id="unpack-pragma">UNPACK Pragma</h3>
+<p><code>ByteString</code> has a constructor <code>PS</code> that takes
+three values: a payload, an offset and a length. The first think I
+noticed were the <a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#unpack-pragma">UNPACK
+pragmas</a>. This pragma unpacks the contents of a constructor field by
+removing one level of indirection, much like <code>newtype</code>. If
+passed to a non-strict function, the compiler will rebox these types.
+However, the <code>-O</code> compiler flag will try to eliminate as many
+reboxings as possible.</p>
+<h3 id="strict-bang">Strict Bang</h3>
+<p>Next, each of these types are prefixed with a bang (exclamation
+point) <code>!</code>, making them all strict. Strict means that these
+values are all call-by-value as opposed to call-by-need (value). This
+helps eliminate thunks and can improve performance in some cases.</p>
+<h3 id="data.int-and-integer">Data.Int and Integer</h3>
+<p>The offset and length types are <code>Int</code>s (<a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/Data-Int.html#t:Int">Data.Int</a>).
+<code>Int</code> is a fixed-precision integer type with guaranteed range
+of at least <code>-2^29</code> to <code>2^29 - 1</code>. This is
+different from <code>Integer</code> (<a href="http://hackage.haskell.org/package/base-4.9.1.0/docs/Prelude.html#t:Integer">Prelude</a>),
+which has an arbitrary range, but probably has worse performance because
+it has no bounds.</p>
+<h3 id="word8">Word8</h3>
+<p>The last type is <code>ForeignPtr Word8</code>. The
+<code>ByteString</code> payload is a pointer to a single
+<code>Word8</code> in C. This is similar to an array in C. We need a
+pointer to a value of a certain type, current location in the array and
+the total length of an array. We will start with <code>Word8</code>
+because it is less complicated then <code>ForeignPtr</code>. Here is the
+definition from <a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/GHC.Word.html#Word8">GHC.Word</a>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="ot">{-# CTYPE &quot;HsWord8&quot; #-}</span> <span class="dt">Word8</span> <span class="ot">=</span> <span class="dt">W8</span><span class="op">#</span> <span class="dt">Word</span><span class="op">#</span></span></code></pre></div>
+<h3 id="ctype-pragma">CTYPE Pragma</h3>
+<p><code>Word8</code> is an 8-bit unsigned integer type. There are a few
+things here that may be confusing if you have never looked at the core
+Haskell or GHC libraries. The <code>CTYPE</code> pragma associates
+<code>Word8</code> with a C type <code>HsWord8</code> (more details <a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/ffi-chap.html?highlight=ctype#the-capi-calling-convention">here</a>).
+We know somewhere in the GHC language code there is a C type name
+<code>HsWord8</code>.</p>
+<h3 id="boxed-and-unboxed-types">Boxed and Unboxed Types</h3>
+<p>Next, we see a hash sign prefixed to the end of the constructor
+<code>W8#</code> and the value <code>Word#</code>. In Haskell, the hash
+sign <code>#</code> as a suffix to a name is an <a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#unboxed-types-and-primitive-operations">Unboxed
+type</a>. Unboxed means there is no pointer or heap allocation and the
+type is a raw machine or primitive type. Most types in GHC are boxed,
+the values of that type are represented by a pointer to a heap object.
+Unboxed types cannot be defined in Haskell. They are built into the
+language and compiler. Unboxed types are also lifted, meaning they
+cannot have the value bottom <code>_</code>. <code>W8#</code> is a
+unboxed (primitive) constructor and <code>Word#</code> is an unboxed
+(primitive) type.</p>
+<p>Many unboxed types in Haskell are simple bit-patterns such as
+<code>Int#</code>, <code>Float#</code>, and <code>Double#</code>, but
+there are also more complicated boxed types like <code>Array#</code>, a
+pointer to a heap-allocated object because the value would be too large
+to store in a register.</p>
+<h3 id="foreignptr">ForeignPtr</h3>
+<p>Finally, we will explore the definition of <code>ForeignPtr</code>,
+defined in <a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/Foreign-ForeignPtr.html#t:ForeignPtr">GHC.ForeignPtr</a>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">ForeignPtr</span> a <span class="ot">=</span> <span class="dt">ForeignPtr</span> <span class="dt">Addr</span><span class="op">#</span> <span class="dt">ForeignPtrContents</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">ForeignPtrContents</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=</span> <span class="dt">PlainForeignPtr</span> <span class="op">!</span>(<span class="dt">IORef</span> <span class="dt">Finalizers</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">MallocPtr</span>      (<span class="dt">MutableByteArray</span><span class="op">#</span> <span class="dt">RealWorld</span>) <span class="op">!</span>(<span class="dt">IORef</span> <span class="dt">Finalizers</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">PlainPtr</span>       (<span class="dt">MutableByteArray</span><span class="op">#</span> <span class="dt">RealWorld</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Finalizers</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=</span> <span class="dt">NoFinalizers</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">CFinalizers</span> (<span class="dt">Weak</span><span class="op">#</span> ())</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="dt">HaskellFinalizers</span> [<span class="dt">IO</span> ()]</span></code></pre></div>
+<p>What is a finalizer?</p>
+<blockquote>
+<p>A finalizer is a routine that is invoked when the Haskell storage
+manager detects that - within the Haskell heap and stack - there are no
+more references left that are pointing to the ForeignPtr. Typically, the
+finalizer will, then, invoke routines in the foreign language that free
+the resources bound by the foreign object.</p>
+</blockquote>
+<h3 id="ghc.prim">GHC.Prim</h3>
+<p>There are a variety of unboxed and boxed types</p>
+<ul>
+<li><p><code>Addr#</code> is also an unboxed type that points to
+something outside the garbarge-collected heap (<a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/src/GHC.Prim.html#Addr%23">GHC.Prim</a>).</p></li>
+<li><p><code>MutableByteArray#</code> is used for FFI data allocation
+(<a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:MutableArray-35-">GHC.Prim</a>
+and <a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/ffi-chap.html?highlight=mutablebytearray#memory-allocation">memory
+allocation details</a>).</p></li>
+<li><p><code>RealWorld</code> is a boxed type used as a type parameter
+by unboxed types (<a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:RealWorld">GHC.Prim</a>).</p></li>
+<li><p><code>State#</code> is unboxed type for concurrency (<a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:State-35-">GHC.Prim</a>).</p></li>
+<li><p><code>Weak#</code> is an unboxed weak pointer (<a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:Weak-35-">GHC.Prim</a>).</p></li>
+</ul>
+<h3 id="ioref">IORef</h3>
+<p><code>IORef</code> is a container for a mutable value (<a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/GHC.IORef.html#IORef">GHC.IORef</a>).</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">IORef</span> a <span class="ot">=</span> <span class="dt">IORef</span> (<span class="dt">STRef</span> <span class="dt">RealWorld</span> a)</span></code></pre></div>
+<h3 id="stref">STRef</h3>
+<p>We have seem <code>RealWorld</code> before, which is a type used by a
+state thread. <code>STRef</code> is mutable variable in a state thread
+<code>s</code> that contains a value of type <code>a</code> (<a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/GHC.STRef.html#STRef">definition</a>).</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">STRef</span> s a <span class="ot">=</span> <span class="dt">STRef</span> (<span class="dt">MutVar</span><span class="op">#</span> s a)</span></code></pre></div>
+<h3 id="multvar">MultVar</h3>
+<p>Finally, <code>MultVar#</code> is also defined in <a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:MutVar-35-">GHC.Prim</a>.
+It is a single item mutable array.</p>
+<h3 id="references">References</h3>
+<ul>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#unboxed-types-and-primitive-operations">Glasgow
+Compiler Users Guide :: 10.2. Unboxed types and primitive
+operations</a></p></li>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#unpack-pragma">Glasgow
+Compiler Users Guide :: 10.31.11. UNPACK pragma</a></p></li>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/ffi-chap.html?highlight=ctype#the-capi-calling-convention">Glasgow
+Compiler Users Guide :: 11.1.5. The CAPI calling convention</a></p></li>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/ffi-chap.html?highlight=mutablebytearray#memory-allocation">Glasgow
+Compiler Users Guide :: 11.2.3. Memory Allocation</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/Data-Int.html#t:Int">Hackage
+:: Data.Int.Int</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/GHC.ForeignPtr.html#ForeignPtr">Hackage
+:: GHC.ForeignPtr.ForeignPtr</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/GHC.IORef.html#IORef">Hackage
+:: GHC.IORef.IORef</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/src/GHC.Prim.html#Addr%23">Hackage
+:: GHC.Prim.Addr#</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:MutableArray-35-">Hackage
+:: GHC.Prim.MutableByteArray#</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:MutVar-35-">Hackage
+:: GHC.Prim.MutVar#</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:RealWorld">Hackage
+:: GHC.Prim.RealWorld</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#t:Weak-35-">Hackage
+:: GHC.Prim.Weak#</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/ghc-prim-0.5.0.0/docs/GHC-Prim.html#g:4">Hackage
+:: GHC.Prim.Word#</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/GHC.STRef.html#STRef">Hackage
+:: GHC.STRef.STRef</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/src/GHC.Word.html#Word8">Hackage
+:: GHC.Word.Word8</a></p></li>
+<li><p><a href="http://hackage.haskell.org/package/base-4.9.1.0/docs/Prelude.html#t:Integer">Hackage
+:: Prelude.Integer</a></p></li>
+<li><p><a href="https://www.haskell.org/onlinereport/haskell2010/">Haskell 2010
+Language Report</a></p></li>
+<li><p><a href="https://en.wikipedia.org/wiki/Weak_reference">Wikipedia
+:: Weak reference</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

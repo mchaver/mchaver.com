@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Maximum Subarray in Haskell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Maximum Subarray in Haskell</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2018-12-29</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/dynamic%20programming.html">dynamic programming</a>
+  </div>
+</div>
+
+<p><a href="https://en.wikipedia.org/wiki/Dynamic_programming">Dynamic
+programming</a> is an algorithmic technique that trades space for
+improved runtime performance and takes advantage of overlapping
+subproblems. <a href="https://en.wikipedia.org/wiki/Memoization">Memoization</a> is a
+common strategy within Dynamic programming; store the results of
+expensive computations and look them up when the same input occurs
+again. Most literature on algorithms provide an imperative programming
+solution instead of a declarative one. I want to work through some
+dynamic programming problems with Haskell.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Maximum_subarray_problem">maximum
+subarray problem</a> is an easy place to start. Given a list of numbers,
+what is the subarray (contiguous) that sums to the largest value. If the
+array only includes positive values, then it is the entire subarray. If
+it includes negative values, then the answer is most likely a subarray.
+Kadane’s algorithm provides a solution in O(n) time. Here is the
+imperative form:</p>
+<pre><code>max_so_far = 0
+max_ending_here = 0
+
+For each element in the array a:
+    max_ending_here = max_ending_here + a[i]
+    if (max_ending_here &lt; 0)
+        max_ending_here = 0
+    if (max_so_far &lt; max_ending_here)
+        max_so_far = max_ending_here
+
+return max_so_far</code></pre>
+<p>The strategy is to store the max result of any subarray in
+<code>max_so_far</code> and when the loop ends, it contains the correct
+answer. <code>max_ending_here</code> contains the result from some index
+up to the current index. The beginning index of the subarray is reset if
+<code>max_ending_here</code> is less than zero, and
+<code>max_so_far</code> is updated only when it is less than
+<code>max_ending_here</code>.</p>
+<p>The translation to Haskell is pretty simple. Instead of two mutable
+values, we create an internal function that takes the updated values of
+<code>maxSoFar</code> and <code>maxEndingHere</code> and call it
+recursively over the values of the list and when the list is empty, we
+return the <code>maxSoFar</code> value.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ot">simpleMaxSubarray ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>simpleMaxSubarray <span class="ot">=</span> simpleMaxSubarray' <span class="dv">0</span> <span class="dv">0</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    simpleMaxSubarray' maxSoFar maxEndingHere []     <span class="ot">=</span> maxSoFar     </span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    simpleMaxSubarray' maxSoFar maxEndingHere (x<span class="op">:</span>xs) <span class="ot">=</span> simpleMaxSubarray' maxSoFar' maxEndingHere' xs</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="kw">where</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        maxEndingHere' <span class="ot">=</span> <span class="fu">max</span> x (maxEndingHere <span class="op">+</span> x)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        maxSoFar'      <span class="ot">=</span> <span class="fu">max</span> maxSoFar maxEndingHere'</span></code></pre></div>
+<p>I decided to improve the function and return the start and end
+indexes of the max subarray.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">maxSubarray ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> (<span class="dt">Int</span>, <span class="dt">Int</span>, <span class="dt">Int</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>maxSubarray <span class="ot">=</span> maxSubarray' <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    maxSubarray' maxSoFar maxEndingHere i start end []     <span class="ot">=</span> (maxSoFar, start, end)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    maxSubarray' maxSoFar maxEndingHere i start end (x<span class="op">:</span>xs) <span class="ot">=</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>      <span class="kw">let</span> i' <span class="ot">=</span> i <span class="op">+</span> <span class="dv">1</span> </span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>          maxEndingHere' <span class="ot">=</span> maxEndingHere <span class="op">+</span> x</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>      <span class="kw">in</span> </span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      <span class="kw">if</span> (maxSoFar <span class="op">&lt;</span> maxEndingHere')</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">then</span> maxSubarray' maxEndingHere' maxEndingHere' i' start i xs</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">else</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>          <span class="kw">if</span> maxEndingHere' <span class="op">&lt;</span> <span class="dv">0</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>            <span class="co">-- reset the subarray we are checking</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>            <span class="kw">then</span> maxSubarray' maxSoFar <span class="dv">0</span>              i' i'    i'  xs</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>            <span class="kw">else</span> maxSubarray' maxSoFar maxEndingHere' i' start end xs</span></code></pre></div>
+<p>You can see that the amount of values we need to pass to the function
+is increasing. This makes it harder to read and keep track of the
+values. In the future, for more complex algorithms we might consider
+some monadic tools like <code>Reader</code>, <code>Writer</code> and
+<code>State</code> to reduce the complexity. We will test
+<code>maxSubarray</code> below and take a look at some of the
+results.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>test  <span class="ot">=</span> [<span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">3</span>, <span class="dv">4</span>, <span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">5</span>, <span class="op">-</span><span class="dv">3</span>]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>test2 <span class="ot">=</span> [<span class="op">-</span><span class="dv">2</span>, <span class="dv">1</span>, <span class="op">-</span><span class="dv">3</span>, <span class="dv">4</span>, <span class="op">-</span><span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="op">-</span><span class="dv">5</span>, <span class="dv">4</span>]</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>test3 <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>]</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>test4 <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>, <span class="op">-</span><span class="dv">5</span>]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test  <span class="co">-- (7,  2, 6)</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test2 <span class="co">-- (6,  3, 6)</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test3 <span class="co">-- (15, 0, 4)</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test4 <span class="co">-- (15, 0, 4)</span></span></code></pre></div>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-31-change-making-problem-in-haskell.html">Change Making Problem in Haskell</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

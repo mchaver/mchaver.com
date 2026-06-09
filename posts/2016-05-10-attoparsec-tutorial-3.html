@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Attoparsec Tutorial Part 3 - Parse Data in Variable Order</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Attoparsec Tutorial Part 3 - Parse Data in Variable Order</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Attoparsec Tutorial</div>
+  <ol>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-1.html">Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing</a></li>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-2.html">Attoparsec Tutorial Part 2 - Parse and Return Values</a></li>
+    
+      <li><span class="current">Attoparsec Tutorial Part 3 - Parse Data in Variable Order</span></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2016-05-10</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/attoparsec.html">attoparsec</a>
+  </div>
+</div>
+
+<p>In ths lesson, we will build upon the parses from the previous
+lesson. The goal is to take a string in which the <code>name</code> and
+<code>phone</code> key-value pairs may occur in any order and can
+succesfully be parsed into a value of type <code>Person</code>.</p>
+<p>String with name first:</p>
+<pre><code>name:Isaac
+phone:1122-3344</code></pre>
+<p>String with phone first:</p>
+<pre><code>phone:1122-3344
+name:Isaac</code></pre>
+<p>My first intuition was to parse it like this:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parsePerson ::</span> <span class="dt">Parser</span> <span class="dt">Person</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>parsePerson <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  first  <span class="ot">&lt;-</span> parseName <span class="op">&lt;|&gt;</span> parsePhone</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">...</span></span></code></pre></div>
+<p>The problem this is unable to distinguish between the resulting type.
+They both return <code>Text</code>. The value of the key-value pairs
+looks the same. A simple solution is to create a sum type that can
+represent a name or a phone, then we can type match the parse
+result.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">PersonItem</span> <span class="ot">=</span> <span class="dt">NameResult</span> <span class="dt">Text</span> <span class="op">|</span> <span class="dt">PhoneResult</span> <span class="dt">Text</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="ot">parsePerson ::</span> <span class="dt">Parser</span> <span class="dt">Person</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>parsePerson <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  first <span class="ot">&lt;-</span> (<span class="dt">NameResult</span> <span class="op">&lt;$&gt;</span> parseName) <span class="op">&lt;|&gt;</span> (<span class="dt">PhoneResult</span> <span class="op">&lt;$&gt;</span> parsePhone)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> first <span class="kw">of</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">NameResult</span> n <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>      p <span class="ot">&lt;-</span> parsePhone</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">return</span> <span class="op">$</span> <span class="dt">Person</span> n p</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">PhoneResult</span> p <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>      n <span class="ot">&lt;-</span> parseName</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      <span class="fu">return</span> <span class="op">$</span> <span class="dt">Person</span> n p</span></code></pre></div>
+<p>We try to perform <code>parseName</code> and wrap it in
+<code>NameResult</code>. If <code>parseName</code> fails then we try
+<code>parsePhone</code> and wrap it in <code>PhoneResult</code>. If that
+fails also then <code>parsePerson</code> fails. Keep in mind that both
+parsers used in <code>(&lt;|&gt;)</code> must return the same type. We
+have met this requirement by wrapping the parse result of the two parses
+with constructors of of the same parse type.</p>
+<p>If name is parsed first then we parse the phone number, and if phone
+number is parsed then we parse the name. The end result is the same
+regardless of which key-value pair occurs first. However, this pattern
+does not scale very well. Think about what it would like if we had four
+or five constructors in <code>PersonItem</code>. The code would become
+very messy.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">spec ::</span> <span class="dt">Spec</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>spec <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  describe <span class="st">&quot;parsePerson&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;name:\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>      parseNameKey <span class="ot">`shouldSucceedOn`</span> (<span class="st">&quot;name:&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;name:James\nphone:867-5309\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;name:James\nphone:867-5309&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parsePerson <span class="ot">`shouldParse`</span> (<span class="dt">Person</span> <span class="st">&quot;James&quot;</span> <span class="st">&quot;867-5309&quot;</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;phone:867-5309\nname:James\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;phone:867-5309\nname:James&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parsePerson <span class="ot">`shouldParse`</span> (<span class="dt">Person</span> <span class="st">&quot;James&quot;</span> <span class="st">&quot;867-5309&quot;</span><span class="ot"> ::</span> <span class="dt">Person</span>)</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> hspec spec</span></code></pre></div>
+<p>Run code with
+<code>stack --resolver lts-8.17 runghc 2016-05-10-attoparsec-tutorial-3.lhs</code>.</p>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-2.html">Attoparsec Tutorial Part 2 - Parse and Return Values</a></li>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-1.html">Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

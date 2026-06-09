@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Linux Network Tools - Netcat</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Linux Network Tools - Netcat</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Linux Network Tools</div>
+  <ol>
+    
+      <li><span class="current">Linux Network Tools - Netcat</span></li>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-2.html">Linux Network Tools - cURL</a></li>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-3.html">Linux Network Tools - netstat</a></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-13</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/linux.html">linux</a><a class="tag" href="../tags/networking.html">networking</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#netcat-nc" id="toc-netcat-nc">Netcat (nc)</a>
+<ul>
+<li><a href="#tcp" id="toc-tcp">TCP</a></li>
+<li><a href="#udp" id="toc-udp">UDP</a></li>
+<li><a href="#port-scan-with-netcat" id="toc-port-scan-with-netcat">Port
+scan with Netcat</a></li>
+<li><a href="#using-files-with-netcat" id="toc-using-files-with-netcat">Using files with Netcat</a></li>
+<li><a href="#timeout" id="toc-timeout">Timeout</a></li>
+<li><a href="#ipv4-and-ipv6" id="toc-ipv4-and-ipv6">IPV4 and
+IPV6</a></li>
+<li><a href="#proxying" id="toc-proxying">Proxying</a></li>
+<li><a href="#alternatives" id="toc-alternatives">Alternatives</a></li>
+</ul></li>
+</ul></nav>
+<h2 id="netcat-nc">Netcat (nc)</h2>
+<p>Sometimes it is useful to listen to a port a monitor what
+requests/data are being sent to it.</p>
+<h3 id="tcp">TCP</h3>
+<p>Open a client to port 7000 on localhost. Type something and hit enter
+to send a message. If the client is unable to make a connection then it
+will close.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc localhost 7000</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">Hello</span> from the client.</span></code></pre></div>
+<p>Add the <code>-l</code> optiont to listen to port 7000 on
+localhost.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc <span class="at">-l</span> 7000</span></code></pre></div>
+<h3 id="udp">UDP</h3>
+<p>Use the <code>-u</code> option to send to UDP packets.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> netcat <span class="at">-u</span> localhost 7000</span></code></pre></div>
+<p>Use the UDP and listen options together to create a simple UDP
+server.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> netcat <span class="at">-lu</span> 7000</span></code></pre></div>
+<h3 id="port-scan-with-netcat">Port scan with Netcat</h3>
+<p>The <code>-z</code> option performs a scan. The <code>-v</code>
+option give a verbose output.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">netcat</span> <span class="at">-zv</span> localhost 80</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Connection</span> to 127.0.0.1 80 port <span class="pp">[</span><span class="ss">tcp/*</span><span class="pp">]</span> succeeded!</span></code></pre></div>
+<p>We can also use a range of ports. Another useful option is
+<code>-n</code> which tells <code>nc</code> to not resolve the IP
+address using DNS. You have to use the IP address. This improves
+performance.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> netcat <span class="at">-zvn</span> 127.0.0.1 1-1000</span></code></pre></div>
+<p><code>nc</code> sends messages to standard error. In order to pipe
+the results to another program, we need to redirect standard error to
+standard output via <code>2&gt;&amp;1</code>. We can then filter the
+results with <code>grep</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> netcat <span class="at">-zvn</span> 127.0.0.1 1-1000 <span class="dv">2</span><span class="op">&gt;&amp;</span><span class="dv">1</span> <span class="kw">|</span> <span class="fu">grep</span> succeeded</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">Connection</span> to 127.0.0.1 80 port <span class="pp">[</span><span class="ss">tcp/*</span><span class="pp">]</span> succeeded!</span></code></pre></div>
+<h3 id="using-files-with-netcat">Using files with Netcat</h3>
+<p>Put received messages into a file.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc <span class="at">-l</span> 7000 <span class="op">&gt;</span> output.txt</span></code></pre></div>
+<p>Send file from client to server.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc localhost 7000 <span class="op">&lt;</span> message.txt</span></code></pre></div>
+<p>You can even serve html files with netcat and access it with your
+browser.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc <span class="at">-l</span> 7000 <span class="op">&lt;</span> index.html</span></code></pre></div>
+<h3 id="timeout">Timeout</h3>
+<p><code>-w</code> keep connection open for x seconds.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nc</span> <span class="at">-w</span> 10 localhost 7000</span></code></pre></div>
+<p><code>-k</code> flag forces it to stay open forever, even after the
+client logs off.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nc</span> <span class="at">-lk</span> 7000</span></code></pre></div>
+<h3 id="ipv4-and-ipv6">IPV4 and IPV6</h3>
+<p><code>-4</code> IPV4 address</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc <span class="at">-4</span> <span class="at">-l</span> 7000</span></code></pre></div>
+<p><code>-6</code> IPV6 address</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc <span class="at">-6</span> <span class="at">-l</span> 7000</span></code></pre></div>
+<h3 id="proxying">Proxying</h3>
+<p><code>mkfifo</code> make first in, first out named pipe. Pipes are
+generally unidirectional. This allows the proxy to send and receive data
+from the target server. We can access <code>www.mchaver.com:80</code>
+via <code>localhost:7000</code>.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> mkfifo bidirectional</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> nc <span class="at">-l</span> 7000 <span class="dv">0</span><span class="op">&lt;</span>bidirectional <span class="kw">|</span> <span class="ex">nc</span> www.mchaver.com 80 <span class="dv">1</span><span class="op">&gt;</span>bidirectional</span></code></pre></div>
+<h3 id="alternatives">Alternatives</h3>
+<h4 id="python">Python</h4>
+<pre><code>python -m SimpleHTTPServer 7000</code></pre>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-3.html">Linux Network Tools - netstat</a></li>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-2.html">Linux Network Tools - cURL</a></li>
+    
+      <li><a href="../posts/2017-07-05-linux-command-line-3.html">Linux Command Line - find, which, whereis, grep, awk, sed</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

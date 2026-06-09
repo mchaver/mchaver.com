@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Attoparsec Tutorial</div>
+  <ol>
+    
+      <li><span class="current">Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing</span></li>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-2.html">Attoparsec Tutorial Part 2 - Parse and Return Values</a></li>
+    
+      <li><a href="../posts/2016-05-10-attoparsec-tutorial-3.html">Attoparsec Tutorial Part 3 - Parse Data in Variable Order</a></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2016-05-09</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/attoparsec.html">attoparsec</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#references" id="toc-references">References:</a></li>
+</ul></nav>
+<p><a href="http://hackage.haskell.org/package/attoparsec">Attoparsec</a> is a
+Haskell parser combinator library for parsing <code>ByteString</code>
+and <code>Text</code>. We can use it to make small parsers and combine
+these small parsers to create more complex ones. The advantage of this
+style is that we can individually test each parser, making it easier to
+debug and build, as well as make the individual pieces reusable.</p>
+<p>We are going to focus on parsing <code>Text</code> from
+<code>Data.Text</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE OverloadedStrings #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Attoparsec.Text</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Text</span> (<span class="dt">Text</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text</span> <span class="kw">as</span> <span class="dt">T</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Test.Hspec</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Test.Hspec.Attoparsec</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="ot">parseHelloWorld ::</span> <span class="dt">Parser</span> ()</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>parseHelloWorld <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  _ <span class="ot">&lt;-</span> string <span class="st">&quot;Hello World!&quot;</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> ()</span></code></pre></div>
+<p>Though you cannot tell by looking at it, <code>Parser ()</code> takes
+a <code>Text</code> and returns <code>()</code>. <code>Parser</code> is
+a type synonym for a more complex type that takes a type <code>i</code>,
+manages some state, and returns a parsed value of your choice. Running a
+parser will return <code>Either Text a</code>, where <code>Text</code>
+is an error message and <code>a</code> is whatever we decide to return.
+In this case it is <code>()</code>.</p>
+<p><code>string</code> takes a <code>Text</code> and returns it in a
+<code>Parser</code>, but we are ignoring the value returned from
+<code>string</code> because our parser returns <code>()</code>. In a
+later lesson we will explore the Parser type declaration. It is worth
+taking a look at the definition in the <a href="https://hackage.haskell.org/package/attoparsec-0.13.1.0/docs/src/Data-Attoparsec-Internal-Types.html#Parser">source
+code</a>.</p>
+<p>Now we will make a test to prove to ourselves that the parser
+works.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ot">spec1 ::</span> <span class="dt">Spec</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>spec1 <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  describe <span class="st">&quot;parseHelloWorld&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse the phrase 'Hello World!'&quot;</span> <span class="op">$</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>      parseHelloWorld <span class="ot">`shouldSucceedOn`</span> (<span class="st">&quot;Hello World!&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span></code></pre></div>
+<p><code>shouldSucceedOn</code> runs a parser from the left hand side
+with the input on the right hand side and allows the test to pass if the
+parser returns <code>Right</code>. Do you want to see what a failed test
+looks like? Change the right hand side of <code>shouldSucceedOn</code>
+to <code>"Hello World"</code> and you will see a
+<code>"not enough input"</code> error. The <code>string</code> function
+could not find the last character <code>!</code>. Let’s slightly change
+the <code>parseHelloWorld</code> function so we can show off some more
+functionallity.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parseHelloWorld2 ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>parseHelloWorld2 <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> string <span class="st">&quot;Hello World!&quot;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> result</span></code></pre></div>
+<p>Now the parse will return the result from the <code>string</code>
+function. We can verify this with another test.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">spec2 ::</span> <span class="dt">Spec</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>spec2 <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  describe <span class="st">&quot;parseHelloWorld2&quot;</span> <span class="op">$</span> <span class="kw">do</span> </span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse the phrase 'Hello World!' and return 'Hello World!'&quot;</span> <span class="op">$</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;Hello World!&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parseHelloWorld2 <span class="ot">`shouldParse`</span> (<span class="st">&quot;Hello World!&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span></code></pre></div>
+<p>The <code>(~&gt;)</code> function feeds a <code>Text</code> value to
+be parsed by <code>parseHelloWorld2</code> from the left hand side and
+<code>shouldParse</code> says not only should the parser succeed, but
+its result should match the right hand side. There are two ways this can
+fail. <code>parseHelloWorld2</code> could fail to parse the left hand
+side, or it could succeed in parsing it but it does not return the
+expectation on the right hand side. Try deleting something from the left
+or right hand side and see what happens when you run the test.</p>
+<p>Sometimes we want to be able to prove that a parser will fail, just
+use <code>shouldFailOn</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should fail to parse any other string&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>      parseHelloWorld <span class="ot">`shouldFailOn`</span> (<span class="st">&quot;Goodnight Everyone!&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span></code></pre></div>
+<p>For failed cases we do not need to inspect the returned result
+because we just get an error message, the left hand side from
+<code>Either Text a</code> that the parser returns. Finally, here is
+what a parser combinator looks like. We will split up the original
+function and glue it together in another one.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parseHello ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>parseHello <span class="ot">=</span> string <span class="st">&quot;Hello&quot;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="ot">parseWorld ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>parseWorld <span class="ot">=</span> string <span class="st">&quot; World!&quot;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="ot">parseHelloWorld3 ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>parseHelloWorld3 <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  hello <span class="ot">&lt;-</span> parseHello</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  world <span class="ot">&lt;-</span> parseWorld</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> <span class="op">$</span> T.concat [hello,world]</span></code></pre></div>
+<p>Add a new test for it.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ot">spec3 ::</span> <span class="dt">Spec</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>spec3 <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  describe <span class="st">&quot;parseHelloWorld3&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse 'Hello World!'&quot;</span> <span class="op">$</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;Hello World!&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parseHelloWorld3 <span class="ot">`shouldParse`</span> (<span class="st">&quot;Hello World!&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span> </span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  hspec spec1</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  hspec spec2</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  hspec spec3</span></code></pre></div>
+<p>You can run this file with the following command:
+<code>stack --resolver lts-8.17 runghc 2016-05-09-attoparsec-tutorial-1.lhs</code>.</p>
+<h3 id="references">References:</h3>
+<ul>
+<li><p><a href="http://hackage.haskell.org/package/attoparsec-0.13.10.0/docs/Data-Attoparsec-Text.html">Hackage
+:: attoparsec</a></p></li>
+<li><p><a href="http://hackage.haskell.org/package/hspec">Hackage ::
+hspec</a></p></li>
+<li><p><a href="http://hackage.haskell.org/package/hspec-attoparsec">Hackage ::
+hspec-attoparsec</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2016-05-10-attoparsec-tutorial-3.html">Attoparsec Tutorial Part 3 - Parse Data in Variable Order</a></li>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-2.html">Attoparsec Tutorial Part 2 - Parse and Return Values</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

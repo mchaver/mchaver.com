@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Type-Level List Search</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Type-Level List Search</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-22</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/type-level.html">type-level</a>
+  </div>
+</div>
+
+<p>We will take a quick look at how to handle element search in two
+kinds of type lists: cons style lists and native Haskell lists. This
+builds on <a href="../posts/2017-06-19-kinds-in-haskell.html">Kinds in
+Haskell</a> and <a href="../posts/2017-06-21-type-families.html">An
+Introduction to Type Families</a>, and is a companion to <a href="../posts/2017-06-20-type-level-heterogeneous-list.html">Type-Level
+Heterogeneous List</a>. We only need three language pragmas.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DataKinds    #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeFamilies #-}</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeOperators #-}</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE PolyKinds #-}</span></span></code></pre></div>
+<p>For the cons style list, we can actually build it without relying on
+<code>TypeOperators</code>. We will work with simple data types of kind
+<code>* -&gt; *</code> so we can make a simple cons like list. They do
+not need constructors because we will not make any values.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">A</span> a</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">B</span> a</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">C</span> a</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">TypeLevelTrue</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">TypeLevelFalse</span></span></code></pre></div>
+<p>Next we define a type family to encapsulate the idea of equality
+between types. We just pattern match on the types.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">ConsContains</span> list (<span class="ot">single ::</span> <span class="op">*</span>) <span class="kw">where</span></span></code></pre></div>
+<p>The list is not empty and the <code>single</code> type is the same
+type as the item in</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ConsContains</span> (x xs) (x ()) <span class="ot">=</span> <span class="dt">TypeLevelTrue</span></span></code></pre></div>
+<p>The list is empty.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ConsContains</span> ()     (x ()) <span class="ot">=</span> <span class="dt">TypeLevelFalse</span></span></code></pre></div>
+<p>The list is not empty, but it does not match the type on the
+right-hand side. Run <code>ConsContains</code> again but without the
+head of the list.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ConsContains</span> (x xs) (y ()) <span class="ot">=</span> <span class="dt">ConsContains</span> xs (y ())</span></code></pre></div>
+<p>This function will only compile if you pass a type that is in the
+cons list. It uses <code>~</code> to try to match
+<code>TypeLevelTrue</code> with the result of
+<code>ConsContains</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ot">consContains ::</span> (<span class="dt">TypeLevelTrue</span> <span class="op">~</span> <span class="dt">ConsContains</span> (<span class="dt">A</span> (<span class="dt">B</span> ())) a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>consContains _ <span class="ot">=</span> <span class="fu">print</span> <span class="st">&quot;Type found in cons list.&quot;</span></span></code></pre></div>
+<p>This function will only compile if you pass a type that is not in the
+cons list. The same idea as above but it tries to match
+<code>TypeLevelFalse</code>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ot">consDoesNotContain ::</span> (<span class="dt">TypeLevelFalse</span> <span class="op">~</span> <span class="dt">ConsContains</span> (<span class="dt">A</span> (<span class="dt">B</span> ())) a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>consDoesNotContain _ <span class="ot">=</span> <span class="fu">print</span> <span class="st">&quot;Type not in the cons list.&quot;</span></span></code></pre></div>
+<p>Now we will do the same thing but use native Haskell type level
+lists.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">X</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Y</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Z</span></span></code></pre></div>
+<p>This is quite similar to the code above with a few small changes. The
+list type is now a list of kind<code>*</code>, written as
+<code>[*]</code>. We need to use <code>'</code> to promote the list
+splitter <code>:</code> to a type level list splitter <code>':</code>.
+Then we return type level boolean values <code>'True</code> and
+<code>'False</code>.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">Contains</span> (<span class="ot">list ::</span> [<span class="op">*</span>]) (<span class="ot">single ::</span> <span class="op">*</span>) <span class="kw">where</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Contains</span> (x '<span class="op">:</span> xs) (x) <span class="ot">=</span> <span class="dt">'True</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Contains</span> '[]       (x) <span class="ot">=</span> <span class="dt">'False</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Contains</span> (x '<span class="op">:</span> xs) (y) <span class="ot">=</span> <span class="dt">Contains</span> xs (y)</span></code></pre></div>
+<p>Now we can use lists instead of types that are embedded in each
+other. A type level list needs to be declared with <code>'[]</code> and
+the result of <code>Contains</code> should match <code>'True</code> or
+<code>'False</code>.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="ot">contains ::</span> (<span class="dt">'True</span> <span class="op">~</span> <span class="dt">Contains</span> '[<span class="dt">X</span>,<span class="dt">Y</span>] a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>contains _ <span class="ot">=</span> <span class="fu">print</span> <span class="st">&quot;Type found in list.&quot;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="ot">doesNotContain ::</span> (<span class="dt">'False</span> <span class="op">~</span> <span class="dt">Contains</span> '[<span class="dt">X</span>,<span class="dt">Y</span>] a) <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>doesNotContain _ <span class="ot">=</span> <span class="fu">print</span> <span class="st">&quot;Type not in list.&quot;</span></span></code></pre></div>
+<p>All of the uncommented code will compile.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  consContains   (<span class="fu">undefined</span><span class="ot"> ::</span> <span class="dt">A</span> ())</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- consContains   (undefined :: C ()) -- the compiler will not compile this</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  consDoesNotContain (<span class="fu">undefined</span><span class="ot"> ::</span> <span class="dt">C</span> ())</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">--  conDoesNotContain   (undefined :: A ()) -- the compiler will not compile this</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  contains       (<span class="fu">undefined</span><span class="ot"> ::</span> <span class="dt">Y</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- contains       (undefined :: Z) -- the compiler will not compile this</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  doesNotContain (<span class="fu">undefined</span><span class="ot"> ::</span> <span class="dt">Z</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- doesNotContain (undefined :: Y) -- the compiler will not compile this</span></span></code></pre></div>
+<p>If you uncomment any of the other lines you will see an error like
+this.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ex">•</span> Couldn<span class="st">'t match type ‘TypeLevelTrue’ with ‘TypeLevelFalse’</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="st">    arising from a use of ‘consContains’</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="st">• In a stmt of a '</span>do<span class="st">' block: consContains (undefined :: C ())</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="st">  In the expression:</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="st">    do { consContains (undefined :: A ());</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="st">         consContains (undefined :: C ());</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="st">         consDoesNotContain (undefined :: C ());</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="st">         contains (undefined :: Y);</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="st">         .... }</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="st">  In an equation for ‘main’:</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="st">      main</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="st">        = do { consContains (undefined :: A ());</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="st">               consContains (undefined :: C ());</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="st">               consDoesNotContain (undefined :: C ());</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="st">               .... }</span></span></code></pre></div>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-28-improved-type-level-fizzbuzz.html">Improved Type-Level FizzBuzz</a></li>
+    
+      <li><a href="../posts/2018-12-16-type-level-fizzbuzz.html">A Preliminary Attempt at Type-Level FizzBuzz</a></li>
+    
+      <li><a href="../posts/2017-12-12-type-name-to-string.html">Haskell Type Names as Strings</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Servant Auth and Elm</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Servant Auth and Elm</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-06</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/elm.html">elm</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#servant-and-servant-auth" id="toc-servant-and-servant-auth">servant and servant-auth</a></li>
+<li><a href="#elm" id="toc-elm">Elm</a></li>
+<li><a href="#resources" id="toc-resources">Resources</a></li>
+</ul></nav>
+<p><a href="https://github.com/mchaver/servant-auth-and-elm-example">servant-auth-and-elm-example</a>
+is a simple project that shows you how to make an Elm application that
+can log in, log out and make authenticated requests to a servant
+back-end. servant-auth adds JSON Web Token authentication to servant. It
+supports authentication via API tokens or browser cookies. In this post
+I will highlight how to authentication works between servant,
+servant-auth and Elm. Hopefully that will be sufficient for you to
+follow the code in the git repository.</p>
+<h2 id="servant-and-servant-auth">servant and servant-auth</h2>
+<p>The back-end code follows the example in the servant-auth <a href="https://github.com/plow-technologies/servant-auth#how-it-works">README.md</a>
+closely. The code is all in one file <a href="https://github.com/mchaver/servant-auth-and-elm-example/blob/master/src/Server.hs">Server.hs</a>.</p>
+<h4 id="protected-api">Protected API</h4>
+<p>The <code>Protected</code> API requires authentication to use. Any
+resource that requires authentication should be placed in this API.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">User</span> <span class="ot">=</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">User</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> userId       ::</span> <span class="dt">Int</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> userEmail    ::</span> <span class="dt">Text</span> </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> userPassword ::</span> <span class="dt">Text</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Read</span>, <span class="dt">Show</span>, <span class="dt">Generic</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Login</span> <span class="ot">=</span> </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Login</span> </span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> username ::</span> <span class="dt">Text</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> password ::</span> <span class="dt">Text</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Read</span>, <span class="dt">Show</span>, <span class="dt">Generic</span>)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Protected</span> <span class="ot">=</span> </span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>       <span class="st">&quot;die&quot;</span>      <span class="op">:&gt;</span> <span class="st">&quot;roll&quot;</span> <span class="op">:&gt;</span> <span class="dt">Get</span> '[<span class="dt">JSON</span>] <span class="dt">Int</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="op">:&lt;|&gt;</span> <span class="st">&quot;loggedin&quot;</span> <span class="op">:&gt;</span> <span class="dt">Get</span> '[<span class="dt">JSON</span>] <span class="dt">User</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="ot">protected ::</span> <span class="dt">AuthResult</span> <span class="dt">User</span> <span class="ot">-&gt;</span> <span class="dt">Server</span> <span class="dt">Protected</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>protected (<span class="dt">Authenticated</span> _user) <span class="ot">=</span> </span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>       (liftIO <span class="op">$</span> randomRIO (<span class="dv">1</span>, <span class="dv">6</span>)) </span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="op">:&lt;|&gt;</span> (<span class="fu">return</span> <span class="op">$</span> <span class="dt">User</span> <span class="dv">1</span> <span class="st">&quot;test@test.com&quot;</span> <span class="st">&quot;&quot;</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>protected _ <span class="ot">=</span> throwAll err401</span></code></pre></div>
+<p>The first route is just a simple random number generator for the
+front-end to call when the user is logged in. The front-end uses the
+second route to see if the current token in the browser’s cookies are
+valid. If they are then the browser gets the user data (excluding the
+password) and can display the user email. You can expand this to include
+any user you want to display to the currently logged in user. For
+simplicity the <code>loggedin</code> route is just returning a hard
+coded value. This can easily be expanded to a database system of your
+choice.</p>
+<h4 id="unprotected-api">Unprotected API</h4>
+<p>The <code>Unprotected</code> API provides any resources that do not
+require authentication: login request, front-end files, home page,
+static resources, etc.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Unprotected</span> <span class="ot">=</span> </span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>       <span class="st">&quot;login&quot;</span> <span class="op">:&gt;</span> <span class="dt">ReqBody</span> '[<span class="dt">JSON</span>] <span class="dt">Login</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>          <span class="op">:&gt;</span> <span class="dt">PostNoContent</span> '[<span class="dt">JSON</span>] </span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>              (<span class="dt">Headers</span> '[ <span class="dt">Header</span> <span class="st">&quot;Set-Cookie&quot;</span> <span class="dt">SetCookie</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                       ,  <span class="dt">Header</span> <span class="st">&quot;Set-Cookie&quot;</span> <span class="dt">SetCookie</span>]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                <span class="dt">NoContent</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="op">:&lt;|&gt;</span> <span class="dt">Raw</span></span></code></pre></div>
+<p>The login route returns two Set-Cookie values in the response header
+if the authentication is successful and returns no value in the body.
+The last route <code>Raw</code> will catch all other API calls. Servant
+route lookup is in order of declaration, from top to bottom.
+<code>Raw</code> with no sub-paths needs to be located at the end or it
+will catch routes that we do not want it to catch.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">checkCreds ::</span> <span class="dt">CookieSettings</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="ot">-&gt;</span> <span class="dt">JWTSettings</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="ot">-&gt;</span> <span class="dt">Login</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="ot">-&gt;</span> <span class="dt">Handler</span> </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">Headers</span> </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        '[ <span class="dt">Header</span> <span class="st">&quot;Set-Cookie&quot;</span> <span class="dt">SetCookie</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>         , <span class="dt">Header</span> <span class="st">&quot;Set-Cookie&quot;</span> <span class="dt">SetCookie</span>]</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>       <span class="dt">NoContent</span>)</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>checkCreds </span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  cookieSettings </span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>  jwtSettings </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>  (<span class="dt">Login</span> loginUserIdent loginUserPassword) <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> mUser <span class="kw">of</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> throwError err401</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Just</span> usr <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>      mApplyCookies <span class="ot">&lt;-</span> liftIO <span class="op">$</span> acceptLogin cookieSettings jwtSettings usr</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> mApplyCookies <span class="kw">of</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Nothing</span>     <span class="ot">-&gt;</span> throwError err401</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> applyCookies <span class="ot">-&gt;</span> <span class="kw">do</span> </span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>          <span class="fu">return</span> <span class="op">$</span> applyCookies <span class="dt">NoContent</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    mUser <span class="ot">=</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>      <span class="kw">if</span> loginUserIdent <span class="op">==</span> <span class="st">&quot;test@test.com&quot;</span> <span class="op">&amp;&amp;</span> loginUserPassword <span class="op">==</span> <span class="st">&quot;password&quot;</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">then</span> <span class="dt">Just</span> <span class="op">$</span> <span class="dt">User</span> <span class="dv">1</span> <span class="st">&quot;test@test.com&quot;</span> <span class="st">&quot;test&quot;</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">else</span> <span class="dt">Nothing</span></span></code></pre></div>
+<p><code>checkCreds</code> handles authentication. Again, for simplicity
+we use hard coded values but we can easily add a database to handle user
+data.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">staticFiles ::</span> [(<span class="dt">FilePath</span>, <span class="dt">ByteString</span>)]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>staticFiles <span class="ot">=</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  [ (<span class="st">&quot;index.html&quot;</span>, <span class="op">$</span>(embedFile <span class="st">&quot;static/index.html&quot;</span>))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  ]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ot">unprotected ::</span> <span class="dt">CookieSettings</span> </span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>            <span class="ot">-&gt;</span> <span class="dt">JWTSettings</span> </span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>            <span class="ot">-&gt;</span> <span class="dt">Server</span> <span class="dt">Unprotected</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>unprotected cs jwts <span class="ot">=</span> </span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  loginH <span class="op">:&lt;|&gt;</span> staticH</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    loginH  <span class="ot">=</span> checkCreds cs jwts</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    staticH <span class="ot">=</span> serveDirectoryWith <span class="op">$</span> set</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>      <span class="kw">where</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        set <span class="ot">=</span> </span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>          (defaultWebAppSettings <span class="op">$</span> <span class="fu">error</span> <span class="st">&quot;unused&quot;</span>) </span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>            { ssLookupFile <span class="ot">=</span> ssLookupFile embedded</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>            , ssIndices <span class="ot">=</span> <span class="fu">map</span> unsafeToPiece [<span class="st">&quot;index.html&quot;</span>] }</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        embedded <span class="ot">=</span> embeddedSettings staticFiles</span></code></pre></div>
+<p><code>staticFiles</code> declares the lookup name we will use in
+<code>Raw</code> and the Template Haskell code
+<code>$(embedFile ...)</code> will load the file contents at compile
+time. <code>index.html</code> is where we store the compiled Elm code.
+The last piece of interest is <code>ssIndices</code>. This tells haskell
+to treat a root lookup <code>/</code> as <code>/index.html</code>.</p>
+<p>Take a look at the cabal file and <code>Setup.hs</code>. I have added
+<code>elm/src/Main.elm</code> to <code>data-dirs</code> and some custom
+code so that when you run <code>stack build</code> it will automatically
+build the elm code and then build the servant project if there have been
+changes to either the Elm or the Haskell project.</p>
+<h2 id="elm">Elm</h2>
+<p>The front-end for this example can do four things: check if the user
+is logged in upon loading the page, log in, log out and request a die
+roll from the server if the user is authenticated.</p>
+<h4 id="native-code">Native Code</h4>
+<p>As mentioned <a href="https://github.com/plow-technologies/servant-auth#csrf-and-the-frontend">here</a>.
+Each query to an authenticated requires the front-end to set
+<code>X-XSRF-TOKEN</code> in the header. In order to do this, we need to
+write native JavaScript code that is called by Elm. To do so, we must
+name the function for the user and project name in the repository key in
+elm-package.json. When you initiate a new elm project it will intially
+set as <code>user</code> and <code>project</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> _mchaver$servant_auth_and_elm_example$Native_CsrfCookie <span class="op">=</span> <span class="kw">function</span>() {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> scheduler <span class="op">=</span> _elm_lang$core$Native_Scheduler<span class="op">;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> value <span class="op">=</span> {}<span class="op">;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  value<span class="op">.</span><span class="at">csrfCookie</span> <span class="op">=</span> e <span class="kw">=&gt;</span> {</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> scheduler<span class="op">.</span><span class="fu">nativeBinding</span>(callback <span class="kw">=&gt;</span> {</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>      <span class="kw">let</span> r <span class="op">=</span> <span class="bu">document</span><span class="op">.</span><span class="at">cookie</span><span class="op">.</span><span class="fu">match</span>(<span class="kw">new</span> <span class="bu">RegExp</span>(<span class="st">'XSRF-TOKEN=([^;]+)'</span>))<span class="op">;</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>      <span class="cf">if</span> (r) {</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        <span class="fu">callback</span>(scheduler<span class="op">.</span><span class="fu">succeed</span>(r[<span class="dv">1</span>]))<span class="op">;</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>      } <span class="cf">else</span> {</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="fu">callback</span>(scheduler<span class="op">.</span><span class="fu">fail</span>([]))<span class="op">;</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  }<span class="op">;</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  value<span class="op">.</span><span class="at">deleteCookie</span> <span class="op">=</span> e <span class="kw">=&gt;</span> {</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> scheduler<span class="op">.</span><span class="fu">nativeBinding</span>(callback <span class="kw">=&gt;</span> {</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>      <span class="bu">document</span><span class="op">.</span><span class="at">cookie</span> <span class="op">=</span> <span class="st">'XSRF-TOKEN=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;'</span><span class="op">;</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>      <span class="bu">window</span><span class="op">.</span><span class="at">location</span><span class="op">.</span><span class="at">href</span> <span class="op">=</span> <span class="st">'/'</span><span class="op">;</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>      <span class="fu">callback</span>(scheduler<span class="op">.</span><span class="fu">succeed</span>([]))<span class="op">;</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    })</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>  }<span class="op">;</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> value<span class="op">;</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>}()<span class="op">;</span></span></code></pre></div>
+<p>The <code>csrfCookie</code> function gets <code>XSRF-TOKEN</code>
+from the cookies and sends it to Elm. <code>deleteCookie</code> sets the
+<code>XSRF-TOKEN</code> to an expired date to delete it and logout the
+user. Then it redirects the user to the root path. There is a small
+layer of code in <a href="https://github.com/mchaver/servant-auth-and-elm-example/blob/master/elm/src/CsrfCookie.elm">CsrfCookie.elm</a>
+to call these two functions from Elm.</p>
+<p>Then there is a function <code>sendWithCsrfToken</code> using <a href="https://github.com/lukewestby/elm-http-builder">elm-http-builder</a>
+to call <code>csrfCookie</code> and set <code>X-XSRF-TOKEN</code> for
+any http-builder request that you give it. Finally, here is an example
+of making a simple authenticated request.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode elm"><code class="sourceCode elm"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">update</span> : <span class="dt">Msg</span> <span class="op">-&gt;</span> <span class="dt">Model</span> <span class="op">-&gt;</span> (<span class="dt">Model</span><span class="op">,</span> <span class="dt">Cmd</span> <span class="dt">Msg</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">update</span> <span class="fu">msg</span> <span class="fu">model</span> <span class="op">=</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">case</span> <span class="fu">msg</span> <span class="cf">of</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">RollDieRequest</span> <span class="op">-&gt;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>      <span class="kw">let</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>        <span class="fu">request</span> <span class="op">=</span> </span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>          <span class="dt">HttpB</span><span class="op">.</span><span class="fu">get</span> <span class="st">&quot;/die/roll&quot;</span> </span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>          <span class="op">|&gt;</span> <span class="dt">HttpB</span><span class="op">.</span><span class="fu">withExpect</span> (<span class="dt">Http</span><span class="op">.</span><span class="fu">expectJson</span> <span class="dt">Json</span><span class="op">.</span><span class="dt">Decode</span><span class="op">.</span><span class="fu">int</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>      <span class="kw">in</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        (<span class="fu">model</span><span class="op">,</span> <span class="fu">sendWithCsrfToken</span> <span class="dt">RollDieResponse</span> <span class="fu">request</span>)</span></code></pre></div>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><p><a href="https://github.com/mchaver/servant-auth-and-elm-example">Github ::
+servant-auth-and-elm-example</a></p></li>
+<li><p><a href="https://github.com/lukewestby/elm-http-builder">Github
+:: elm-http-builder</a></p></li>
+<li><p><a href="https://github.com/plow-technologies/servant-auth">Github ::
+servant-auth</a></p></li>
+<li><p><a href="http://hackage.haskell.org/package/jose">Hackage ::
+jose: Javascript Object Signing and Encryption and JSON Web Token
+library</a></p></li>
+<li><p><a href="http://hackage.haskell.org/package/servant-auth">Hackage
+:: servant-auth</a></p></li>
+<li><p><a href="http://hackage.haskell.org/package/servant-auth-server">Hackage ::
+servant-auth-server</a></p></li>
+<li><p><a href="https://jwt.io/introduction/">JSON Web Token
+Introduction</a></p></li>
+<li><p><a href="https://en.wikipedia.org/wiki/JSON_Web_Token">Wikipedia
+:: JSON Web Token</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

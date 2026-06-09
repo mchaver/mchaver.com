@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Orphan Instances</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Orphan Instances</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-25</div>
+  <div class="post-tags-line">
+    <a class="kind kind-reference" href="../kinds/reference.html">reference</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#global-type-class-instances" id="toc-global-type-class-instances">Global type class
+instances</a></li>
+<li><a href="#orphan-instance" id="toc-orphan-instance">Orphan
+instance</a></li>
+<li><a href="#are-orphan-instances-ever-acceptable" id="toc-are-orphan-instances-ever-acceptable">Are orphan instances ever
+acceptable?</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<h2 id="global-type-class-instances">Global type class instances</h2>
+<p>In Haskell, type class instances are global and unique. For any type,
+it can only have one instance of a type class and it is implicitly
+imported into anything that imports a file with the instance or a file
+that imports a file with an instance.</p>
+<p>For example, we declare a data type <code>Person</code> with an
+instance for <code>Show</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> <span class="dt">A</span> <span class="kw">where</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Person</span> <span class="ot">=</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Person</span> </span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> name ::</span> <span class="dt">String</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> age  ::</span> <span class="dt">Int</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Show</span> <span class="dt">Person</span> <span class="kw">where</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">show</span> (<span class="dt">Person</span> n a) <span class="ot">=</span> </span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;This person is named &quot;</span> <span class="op">++</span> name <span class="op">++</span> <span class="st">&quot; and is &quot;</span> <span class="op">++</span> (<span class="fu">show</span> age) <span class="op">++</span> <span class="st">&quot; years old.&quot;</span></span></code></pre></div>
+<p>In another module, we import <code>A</code>. This includes the type
+class instances that <code>Person</code> has implemented. We cannot
+create a new instance of <code>Show Person</code>. The compiler will
+complain if we try to make a new instance of
+<code>Show Person</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> <span class="dt">B</span> <span class="kw">where</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">A</span></span></code></pre></div>
+<p>In a third module we only import <code>B</code>, but do not import
+<code>A</code>. Again, we cannot create a new instance of
+<code>Show Person</code> because it has been implicitly imported because
+<code>B</code> imports <code>A</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> <span class="dt">C</span> <span class="kw">where</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">B</span></span></code></pre></div>
+<h2 id="orphan-instance">Orphan instance</h2>
+<p>Assume that <code>A</code> belongs to a library package called
+<code>person</code>. Now we make a new executable package called
+<code>website</code> that depends on <code>person</code> and we import
+the <code>Person</code> type, but we realize we forgot to add an
+instance of <code>Eq</code> so we decide to declare it in the website
+package.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> <span class="dt">Website</span> <span class="kw">where</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">A</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Eq</span> <span class="dt">Person</span> <span class="kw">where</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  (<span class="op">==</span>) (<span class="dt">Person</span> _aName aAge) (<span class="dt">Person</span> _bName bAge) <span class="ot">=</span> aAge <span class="op">==</span> bAge</span></code></pre></div>
+<p>This works, but the compiler will complain that we have declared an
+orphan instance. Orphan instances can cause problems if we declare an
+instance for a type in two different files and then a third file imports
+both of these files. That would bring in two instances of the same
+typeclass/type pair and that is not permissible in Haskell. We want to
+avoid orphan instances as much as possible.</p>
+<p>There are two common workarounds:</p>
+<ul>
+<li><p>Define all the type class instances where the type is defined.
+This is easy if you own the code or you are willing to maintain a branch
+of the library.</p></li>
+<li><p>Create a newtype of the type we want more type classes for. This
+will avoid orphan instances, but require a lot more code and may be
+annoying if there are a lot of type specific functions we want to
+use.</p></li>
+</ul>
+<h2 id="are-orphan-instances-ever-acceptable">Are orphan instances ever
+acceptable?</h2>
+<p>If you are declaring type instances in an executable package or a
+test package that is not shared, declaring orphan instances generally is
+not a problem because nothing else will import those instances and it
+will not contaminate other libraries.</p>
+<p>We can silence the compiler with a simple annotation at the top any
+file with orphan instances.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# OPTIONS_GHC -fno-warn-orphans #-}</span></span></code></pre></div>
+<p>If you have any private libraries, it might be ok to declare orphan
+instances as well.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://wiki.haskell.org/Orphan_instance">Haskell wiki ::
+Orphan instance</a></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

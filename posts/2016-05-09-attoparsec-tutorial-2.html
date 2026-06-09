@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Attoparsec Tutorial Part 2 - Parse and Return Values</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Attoparsec Tutorial Part 2 - Parse and Return Values</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Attoparsec Tutorial</div>
+  <ol>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-1.html">Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing</a></li>
+    
+      <li><span class="current">Attoparsec Tutorial Part 2 - Parse and Return Values</span></li>
+    
+      <li><a href="../posts/2016-05-10-attoparsec-tutorial-3.html">Attoparsec Tutorial Part 3 - Parse Data in Variable Order</a></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2016-05-09</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/attoparsec.html">attoparsec</a>
+  </div>
+</div>
+
+<p>Now we want to parse something a little more complicated. Take a
+string input of a key value pair and return the value. The input will
+look like this “name:Mercutio”. The first rule is this string begins
+with a key <code>name:</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE OverloadedStrings #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Control.Applicative</span> </span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.Attoparsec.Text</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.Char</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.Text</span> (<span class="dt">Text</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text</span> <span class="kw">as</span> <span class="dt">T</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Prelude</span> <span class="kw">hiding</span> (takeWhile)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Test.Hspec</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Test.Hspec.Attoparsec</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="ot">parseNameKey ::</span> <span class="dt">Parser</span> ()</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>parseNameKey <span class="ot">=</span> string <span class="st">&quot;name:&quot;</span> <span class="op">&gt;&gt;</span> <span class="fu">return</span> ()</span></code></pre></div>
+<p>You can try importing <code>Data.Attoparsec.Text</code>, declare
+<code>parseNameKey</code> and running
+<code>parse parseNameKey "name:"</code>. It will return
+<code>Done</code> and an empty string. To parse the value following the
+key and <code>:</code>, we only need to collect text until the end of
+line or input. <code>takeTill</code> consumes input until it parses the
+parser on the right or it runs out of input.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parseNameValue ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>parseNameValue <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> takeTill isEndOfLine</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  endOfLine <span class="op">&lt;|&gt;</span> endOfInput</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> n</span></code></pre></div>
+<p>Now we can combine the two parsers into one and get the value
+back.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parseNameKeyValuePair ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>parseNameKeyValuePair <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  parseNameKey</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  parseNameValue</span></code></pre></div>
+<p>Now we will parse a different key value pair, a phone number
+<code>phone:867-5309</code>. Parsing the phone key is the same as
+parsing the name key,</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parsePhoneKey ::</span> <span class="dt">Parser</span> ()</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>parsePhoneKey <span class="ot">=</span> string <span class="st">&quot;phone:&quot;</span> <span class="op">&gt;&gt;</span> <span class="fu">return</span> ()</span></code></pre></div>
+<p>The rules for a phone number’s values are: it consists of digits 0-9
+and the dash character -, a dash cannot be the first or the last
+character, and there cannot be two dashes in sequence. These are some
+legal phone numbers: 489-4608, 123456789, 0937-876-321. These are some
+illegal phone numbers: 485-32-, -123, 12–232323. We will start with
+simple parser that handles only numbers.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parseSimplePhoneValue ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>parseSimplePhoneValue <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  number <span class="ot">&lt;-</span> takeWhile1 <span class="fu">isDigit</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  endOfLine <span class="op">&lt;|&gt;</span> endOfInput</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> number</span></code></pre></div>
+<p><code>takeWhile1</code> takes a function which takes a
+<code>Char</code> and returns a <code>Bool</code>:
+<code>(Char -&gt; Bool)</code>. It consumes input as long as the
+function it took returns <code>True</code>. It must consume at least
+once or the parser will fail. <code>isDigit</code> matches 0-9. It is
+defined in Data.Char. <code>endOfLine &lt;|&gt; endOfInput</code> will
+succeed if the character is <code>\n</code>, <code>\r</code> or there is
+no more input. <code>&lt;|&gt;</code> means try the parser on the left
+first and if it fails, try the parser on the right. It is part of the
+<code>Alternative</code> type class. Now we will make it handle dashes
+appropriately.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">getNums ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>getNums <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  num <span class="ot">&lt;-</span> takeWhile1 <span class="fu">isDigit</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  mDash <span class="ot">&lt;-</span> (<span class="dt">Just</span> <span class="op">&lt;$&gt;</span> string <span class="st">&quot;-&quot;</span>) <span class="op">&lt;|&gt;</span> <span class="fu">pure</span> <span class="dt">Nothing</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> mDash <span class="kw">of</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="fu">return</span> num</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Just</span> dash <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>      nextIsDigit</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">return</span> <span class="op">$</span> T.append num dash  </span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="ot">nextIsDigit ::</span> <span class="dt">Parser</span> ()</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>nextIsDigit <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  mNext <span class="ot">&lt;-</span> peekChar</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> mNext <span class="kw">of</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="fu">return</span> () <span class="co">-- tried to parse the end of input</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Just</span> next <span class="ot">-&gt;</span>  </span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>      <span class="kw">if</span> <span class="fu">isDigit</span> next</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>        <span class="kw">then</span> <span class="fu">return</span> ()</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>        <span class="kw">else</span> <span class="fu">fail</span> <span class="st">&quot;did not find digit&quot;</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="ot">parsePhoneValue ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>parsePhoneValue <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>  num <span class="ot">&lt;-</span> T.concat <span class="op">&lt;$&gt;</span> many1 getNums</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> num</span></code></pre></div>
+<p><code>parsePhoneValue</code> runs <code>many1 getNums</code> to parse
+one or more series of numbers that can be optionally followd by a dash
+in the case that there is another digit after the dash. The
+<code>T.concat &lt;$&gt;</code> part will concat all of the number
+strings after parsing.</p>
+<p><code>getNums</code> collects a a series of one or more digits with
+<code>takeWhile1 isDigit</code>. <code>takeWhile1</code> takes a (Char
+-&gt; Bool) function and consumes input until the function returns
+<code>False</code>.
+<code>(Just &lt;$&gt; string "-") &lt;|&gt; pure Nothing</code> checks
+if there is a dash and wraps it in <code>Just</code> if it succeeds,
+otherwise, it returns <code>Nothing</code>. <code>Nothing</code> has to
+be returned with <code>pure</code> or <code>return</code> because
+parsers are monads. <code>(&lt;|&gt;)</code> is an infix operator that
+tries a parser on the left, if it succeeds then it moves on, if it
+fails, it tracks the text input to the point before the left hand parser
+ran and then it performs the action on the right. If there is no dash,
+then we can return the series of digits. Otherwise, we use
+<code>nextIsDigit</code> to peek at the next character without consuming
+it. If it is a digit than the parser will succeed and return the number
+series and dash. If it is not, then the <code>getNums</code> parser will
+fail.</p>
+<p><code>nextIsDigit</code> peeks at the next character with
+<code>peekChar</code>. If it encounters the end of input it return
+<code>Nothing</code> and the <code>nextIsDigit</code> parser fails,
+otherwise if the the value of <code>isDigit next</code> is
+<code>True</code> then the parser succeeds, otherwise it will fail.</p>
+<p>Finally, we can make a parser that combines the phone key and value
+parser.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ot">parsePhoneKeyValuePair ::</span> <span class="dt">Parser</span> <span class="dt">Text</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>parsePhoneKeyValuePair <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  parsePhoneKey</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  parsePhoneValue</span></code></pre></div>
+<p>We can also make a product type of the two values that we can parse
+now and create a parser that combines the parsers of those two
+values.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Person</span> <span class="ot">=</span> <span class="dt">Person</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> name  ::</span> <span class="dt">Text</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> phone ::</span> <span class="dt">Text</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Read</span>, <span class="dt">Show</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="ot">parsePersonData ::</span> <span class="dt">Parser</span> <span class="dt">Person</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>parsePersonData <span class="ot">=</span> <span class="kw">do</span> <span class="co">-- Person &lt;$&gt; parseNameKeyValuePair &lt;*&gt; parsePhoneKeyValuePair</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  personName  <span class="ot">&lt;-</span> parseNameKeyValuePair</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  personPhone <span class="ot">&lt;-</span> parsePhoneKeyValuePair</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> <span class="op">$</span> <span class="dt">Person</span> personName personPhone</span></code></pre></div>
+<p>Continuing with the idea of test driven development, here are the
+specs to show it works against a variety of simple tests.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ot">spec ::</span> <span class="dt">Spec</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>spec <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  describe <span class="st">&quot;Parser&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;name:\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>      parseNameKey <span class="ot">`shouldSucceedOn`</span> (<span class="st">&quot;name:&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;Mercutio\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>      parseNameValue <span class="ot">`shouldSucceedOn`</span> (<span class="st">&quot;Mercutio&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;Mercutio\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;Mercutio&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parseNameValue <span class="ot">`shouldParse`</span> (<span class="st">&quot;Mercutio&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;name:Mercutio\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;name:Mercutio&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parseNameKeyValuePair <span class="ot">`shouldParse`</span> (<span class="st">&quot;Mercutio&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;name:Marcus Brutus\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;name:Marcus Brutus&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parseNameKeyValuePair <span class="ot">`shouldParse`</span> (<span class="st">&quot;Marcus Brutus&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;name:Petruchio\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;name:Petruchio&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parseNameKeyValuePair <span class="ot">`shouldParse`</span> (<span class="st">&quot;Petruchio&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;phone:867-5309\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;phone:867-5309&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parsePhoneKeyValuePair <span class="ot">`shouldParse`</span> (<span class="st">&quot;867-5309&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should parse \&quot;phone:867-1-5309\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>      (<span class="st">&quot;phone:867-1-5309&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) <span class="op">~&gt;</span> parsePhoneKeyValuePair <span class="ot">`shouldParse`</span> (<span class="st">&quot;867-1-5309&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should fail to parse \&quot;phone:867--5309\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>      parsePhoneKeyValuePair <span class="ot">`shouldFailOn`</span> (<span class="st">&quot;867--5309&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should fail to parse \&quot;phone:-867-5309\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>      parsePhoneKeyValuePair <span class="ot">`shouldFailOn`</span> (<span class="st">&quot;-867-5309&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;should fail to parse \&quot;phone:867-5309-\&quot;&quot;</span> <span class="op">$</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>      parsePhoneKeyValuePair <span class="ot">`shouldFailOn`</span> (<span class="st">&quot;867-5309-&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> hspec spec</span></code></pre></div>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2016-05-10-attoparsec-tutorial-3.html">Attoparsec Tutorial Part 3 - Parse Data in Variable Order</a></li>
+    
+      <li><a href="../posts/2016-05-09-attoparsec-tutorial-1.html">Attoparsec Tutorial Part 1 - Parser Combinators and Test Driven Parsing</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

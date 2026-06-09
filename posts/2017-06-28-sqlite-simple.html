@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Simple SQLite queries with sqlite-simple</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Simple SQLite queries with sqlite-simple</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-28</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/SQL.html">SQL</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#motivation" id="toc-motivation">Motivation</a></li>
+<li><a href="#example" id="toc-example">Example</a></li>
+<li><a href="#conclusion" id="toc-conclusion">Conclusion</a></li>
+</ul></nav>
+<h2 id="motivation">Motivation</h2>
+<p>Haskell libraries like persistent<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> and groundhog<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> offer feature complex database
+connections. However, these libraries use Template Haskell to produce a
+large amount of types and type classes to simplify serialization to and
+from the database. This increases compile times and introduces more
+complexity from the perspective of the developer.</p>
+<p>persistent is very opinionated about how you structure your database.
+This makes it difficult to work with databases that do not fit
+persistent’s expected structure. groundhog is more flexible in terms of
+how your types are serialized to and from a database. While esqueleto<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> extends persistent to permit joins,
+groundhog does not support joins and both libraries are limited to a
+subset of possible SQL queries. However, they also remove the burden of
+writing error-prone boilerplate code and provide raw query options.</p>
+<p>sqlite-simple<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> allows us to write simple type class
+serializations for data types, <code>ToRow</code> and
+<code>FromRow</code>, and raw database queries.</p>
+<h2 id="example">Example</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE OverloadedStrings #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> <span class="dt">Main</span> <span class="kw">where</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Control.Monad</span> (mapM_)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.Int</span> (<span class="dt">Int64</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.Text</span> (<span class="dt">Text</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text</span> <span class="kw">as</span> <span class="dt">T</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Database.SQLite.Simple</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Database.SQLite.Simple.FromRow</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Database.SQLite.Simple.FromField</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Database.SQLite.Simple.ToField</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Database.SQLite.Simple.Internal</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Database.SQLite.Simple.Ok</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Person</span> <span class="ot">=</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Person</span> </span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> personId   ::</span> <span class="dt">Int64</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> personName ::</span> <span class="dt">Text</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> personAge  ::</span> <span class="dt">Text</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Eq</span>,<span class="dt">Read</span>,<span class="dt">Show</span>)</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">FromRow</span> <span class="dt">Person</span> <span class="kw">where</span></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  fromRow <span class="ot">=</span> <span class="dt">Person</span> <span class="op">&lt;$&gt;</span> field <span class="op">&lt;*&gt;</span> field <span class="op">&lt;*&gt;</span> field</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="co">-- when inserting a new Person, ignore personId. SQLite will provide it for us.</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">ToRow</span> <span class="dt">Person</span> <span class="kw">where</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>  toRow (<span class="dt">Person</span> _pId pName pAge) <span class="ot">=</span> toRow (pAge, pName)</span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a><span class="ot">runPersonExample ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>runPersonExample <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>  conn <span class="ot">&lt;-</span> open <span class="st">&quot;test.db&quot;</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  execute_ conn <span class="st">&quot;CREATE TABLE IF NOT EXISTS people (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, age TEXT)&quot;</span></span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO people (name, age) VALUES (?,?)&quot;</span> (<span class="dt">Person</span> <span class="dv">0</span> <span class="st">&quot;Justina&quot;</span> <span class="st">&quot;15&quot;</span>)</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO people (name, age) VALUES (?,?)&quot;</span> (<span class="dt">Person</span> <span class="dv">0</span> <span class="st">&quot;Jordi&quot;</span> <span class="st">&quot;11&quot;</span>)</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>  people <span class="ot">&lt;-</span> query_ conn <span class="st">&quot;SELECT id, name, age from people&quot;</span><span class="ot"> ::</span> <span class="dt">IO</span> [<span class="dt">Person</span>]</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>  close conn</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> people</span></code></pre></div>
+<p>Now we will define a new field and new row type and use a join.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">PhoneType</span> <span class="ot">=</span> <span class="dt">HomePhone</span> <span class="op">|</span> <span class="dt">CellPhone</span> <span class="op">|</span> <span class="dt">WorkPhone</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">deriving</span> (<span class="dt">Eq</span>,<span class="dt">Read</span>,<span class="dt">Show</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">ToField</span> <span class="dt">PhoneType</span> <span class="kw">where</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  toField <span class="ot">=</span> <span class="dt">SQLText</span> <span class="op">.</span> T.pack <span class="op">.</span> <span class="fu">show</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">FromField</span> <span class="dt">PhoneType</span> <span class="kw">where</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  fromField (<span class="dt">Field</span> (<span class="dt">SQLText</span> <span class="st">&quot;HomePhone&quot;</span>) _) <span class="ot">=</span> <span class="dt">Ok</span> <span class="dt">HomePhone</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  fromField (<span class="dt">Field</span> (<span class="dt">SQLText</span> <span class="st">&quot;CellPhone&quot;</span>) _) <span class="ot">=</span> <span class="dt">Ok</span> <span class="dt">CellPhone</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  fromField (<span class="dt">Field</span> (<span class="dt">SQLText</span> <span class="st">&quot;WorkPhone&quot;</span>) _) <span class="ot">=</span> <span class="dt">Ok</span> <span class="dt">WorkPhone</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  fromField f <span class="ot">=</span> returnError <span class="dt">ConversionFailed</span> f <span class="st">&quot;need 'HomePhone', 'CellPhone' or 'WorkPhone'&quot;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Phone</span> <span class="ot">=</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Phone</span> </span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> phoneId       ::</span> <span class="dt">Int64</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> phoneNumber   ::</span> <span class="dt">Text</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> phoneType     ::</span> <span class="dt">PhoneType</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> phonePersonId ::</span> <span class="dt">Int64</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Eq</span>,<span class="dt">Read</span>,<span class="dt">Show</span>)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">FromRow</span> <span class="dt">Phone</span> <span class="kw">where</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  fromRow <span class="ot">=</span> <span class="dt">Phone</span> <span class="op">&lt;$&gt;</span> field <span class="op">&lt;*&gt;</span> field <span class="op">&lt;*&gt;</span> field <span class="op">&lt;*&gt;</span> field</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="co">-- when inserting a new Phone, ignore phoneId. SQLite will provide it for us.</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">ToRow</span> <span class="dt">Phone</span> <span class="kw">where</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  toRow (<span class="dt">Phone</span> _pId pNumber pType pPersonId) <span class="ot">=</span> toRow (pNumber, pType, pPersonId)</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">PeoplePhonePair</span> <span class="ot">=</span></span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>  <span class="dt">PeoplePhonePair</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> ppPersonId    ::</span> <span class="dt">Int64</span></span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> ppName        ::</span> <span class="dt">Text</span></span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> ppAge         ::</span> <span class="dt">Text</span></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> ppPhoneNumber ::</span> <span class="dt">Text</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> ppPhoneType   ::</span> <span class="dt">PhoneType</span></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Eq</span>,<span class="dt">Read</span>,<span class="dt">Show</span>)</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">FromRow</span> <span class="dt">PeoplePhonePair</span> <span class="kw">where</span></span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>  fromRow <span class="ot">=</span> <span class="dt">PeoplePhonePair</span> <span class="op">&lt;$&gt;</span> field <span class="op">&lt;*&gt;</span> field <span class="op">&lt;*&gt;</span> field <span class="op">&lt;*&gt;</span> field <span class="op">&lt;*&gt;</span> field</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a><span class="ot">runPhoneExample ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>runPhoneExample <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>  conn     <span class="ot">&lt;-</span> open <span class="st">&quot;test.db&quot;</span></span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>  execute_ conn <span class="st">&quot;CREATE TABLE IF NOT EXISTS person (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, age TEXT)&quot;</span></span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>  execute_ conn <span class="st">&quot;CREATE TABLE IF NOT EXISTS phone (id INTEGER PRIMARY KEY AUTOINCREMENT, number TEXT, type TEXT, person_id INTEGER)&quot;</span></span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO person (name, age) VALUES (?,?)&quot;</span> (<span class="dt">Person</span> <span class="dv">0</span> <span class="st">&quot;Justina&quot;</span> <span class="st">&quot;15&quot;</span>)</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>  justinaId <span class="ot">&lt;-</span> lastInsertRowId conn</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> justinaId</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO person (name, age) VALUES (?,?)&quot;</span> (<span class="dt">Person</span> <span class="dv">0</span> <span class="st">&quot;Jordi&quot;</span> <span class="st">&quot;11&quot;</span>)</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>  jordiId <span class="ot">&lt;-</span> lastInsertRowId conn</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> jordiId</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="st">&quot;people&quot;</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>  people <span class="ot">&lt;-</span> query_ conn <span class="st">&quot;SELECT id, name, age from person&quot;</span><span class="ot"> ::</span> <span class="dt">IO</span> [<span class="dt">Person</span>]</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> people</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>  justina <span class="ot">&lt;-</span> queryNamed conn <span class="st">&quot;SELECT id, name, age from person where id = :id&quot;</span> [<span class="st">&quot;:id&quot;</span> <span class="op">:=</span> justinaId]<span class="ot"> ::</span> <span class="dt">IO</span> [<span class="dt">Person</span>]</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> justina</span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>  jordi   <span class="ot">&lt;-</span> queryNamed conn <span class="st">&quot;SELECT id, name, age from person where id = :id&quot;</span> [<span class="st">&quot;:id&quot;</span> <span class="op">:=</span> jordiId]<span class="ot">   ::</span> <span class="dt">IO</span> [<span class="dt">Person</span>]</span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> jordi</span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO phone (number, type, person_id) VALUES (?,?,?)&quot;</span> (<span class="dt">Phone</span> <span class="dv">0</span> <span class="st">&quot;123456789&quot;</span> <span class="dt">HomePhone</span> justinaId)</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO phone (number, type, person_id) VALUES (?,?,?)&quot;</span> (<span class="dt">Phone</span> <span class="dv">0</span> <span class="st">&quot;111222333&quot;</span> <span class="dt">CellPhone</span> justinaId)</span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO phone (number, type, person_id) VALUES (?,?,?)&quot;</span> (<span class="dt">Phone</span> <span class="dv">0</span> <span class="st">&quot;987654321&quot;</span> <span class="dt">CellPhone</span> jordiId)</span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>  execute conn <span class="st">&quot;INSERT INTO phone (number, type, person_id) VALUES (?,?,?)&quot;</span> (<span class="dt">Phone</span> <span class="dv">0</span> <span class="st">&quot;444555666&quot;</span> <span class="dt">WorkPhone</span> jordiId)</span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>  peoplePhonePairs <span class="ot">&lt;-</span> query_ conn <span class="st">&quot;SELECT person.id, name, age, number, type from person LEFT OUTER JOIN phone ON person.id = phone.person_id&quot;</span><span class="ot"> ::</span> <span class="dt">IO</span> [<span class="dt">PeoplePhonePair</span>]</span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mapM_</span> <span class="fu">print</span> peoplePhonePairs</span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>  close conn</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> runPhoneExample</span></code></pre></div>
+<h2 id="conclusion">Conclusion</h2>
+<p>I think this highlights the repetition that is required to create a
+full application and motivates the use of libraries like persistent and
+groundhog. If you only need some simple queries, then sqlite-simple is
+sufficient. Otherwise the burden of manually writing boilerplate
+non-type safe queries may be too high.</p>
+<p>Moreover, all of these queries are unsafe IO. If <code>execute</code>
+or <code>query</code> fail then an exception will be raised. It would
+probably be a good idea to extend <code>sqlite-simple</code> to
+<code>executeMay</code> and <code>queryMay</code> that return
+<code>IO (Either SQLError a)</code>. That way we are required to program
+type safe behavior.</p>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://hackage.haskell.org/package/persistent">Hackage ::
+persistent</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://hackage.haskell.org/package/groundhog">Hackage ::
+groundhog</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://hackage.haskell.org/package/esqueleto">Hackage ::
+esqueleto</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p><a href="https://hackage.haskell.org/package/sqlite-simple">Hackage ::
+sqlite-simple</a><a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Linux Command Line - find, which, whereis, grep, awk, sed</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Linux Command Line - find, which, whereis, grep, awk, sed</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Linux Command Line</div>
+  <ol>
+    
+      <li><a href="../posts/2017-06-13-linux-command-line-1.html">Linux Command Line - I/O Redirection</a></li>
+    
+      <li><a href="../posts/2017-07-04-linux-command-line-2.html">Linux Command Line - Disk Usage and Disk Filesystem</a></li>
+    
+      <li><span class="current">Linux Command Line - find, which, whereis, grep, awk, sed</span></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2017-07-05</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/linux.html">linux</a><a class="tag" href="../tags/command%20line.html">command line</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#find" id="toc-find">find</a></li>
+<li><a href="#which" id="toc-which">which</a></li>
+<li><a href="#whereis" id="toc-whereis">whereis</a></li>
+<li><a href="#grep" id="toc-grep">grep</a></li>
+<li><a href="#awk" id="toc-awk">awk</a></li>
+<li><a href="#sed" id="toc-sed">sed</a></li>
+</ul></nav>
+<p>A short reference for common search tools.</p>
+<h2 id="find">find</h2>
+<p><code>find</code> is an executable for finding a file based on its
+name.</p>
+<p><code>find .</code> return the files and directories in the current
+directory.</p>
+<p><code>find . -name &lt;pattern&gt;</code> return the files and
+directories of the current directory that match a pattern such as
+<code>\*.txt</code> or <code>home\*</code>.</p>
+<p>There is an alternative program <code>locate</code> that is faster,
+but it requires a database that must be up to date with
+<code>updatedb</code> or it can return incorrect information.
+<code>locate</code> is also less standardized across systems.</p>
+<h2 id="which">which</h2>
+<p><code>which</code> returns the absolute path of an executable.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">~$</span> which sudo</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ex">/user/bin/sudo</span></span></code></pre></div>
+<h2 id="whereis">whereis</h2>
+<p><code>whereis</code> returns the locations of the binary, source and
+man pages of an executable.</p>
+<h2 id="grep">grep</h2>
+<p><code>grep</code> stands for Global Regular Expression Print. It is
+useful for searching the contents of a file or multiple files. It can
+also be used in a Unix pipe for filtering data. GNU grep is faster than
+BSD grep, but it is not packaged with Mac OS X. You can install
+<code>ggrep</code> with
+<code>brew tap homebrew/dupes; brew install grep</code>.</p>
+<p><code>grep "string" &lt;file&gt;</code> returns each line of the file
+that contains <code>string</code>.</p>
+<p><code>grep "string" &lt;pattern&gt;</code> returns each line of any
+file that contains <code>string</code>, prefixed by the name of a
+file.</p>
+<p>The <code>-i "string"</code> flag makes matching <code>string</code>
+case insensitive.</p>
+<p><code>grep "regex" &lt;pattern&gt;</code> returns file lines based on
+matches for a regular expression.</p>
+<p><code>grep -iw "string" &lt;pattern&gt;</code> returns matches to
+<code>string</code> that is a full world. It matches
+<code>This is a string.</code>, but not
+<code>This is a shoestring.</code>.</p>
+<p><code>... | grep "regex"</code> filters the results of another
+command.</p>
+<p><code>grep -r "string" *</code> searches recursively in the current
+directory.</p>
+<h2 id="awk">awk</h2>
+<p><code>awk</code> manipulates structured data and returns reports. It
+has the following features</p>
+<ul>
+<li>text file as records and fields</li>
+<li>variables, conditions and loops</li>
+<li>arithmetic and string operators</li>
+<li>generate formatted reports</li>
+</ul>
+<p><code>awk '{print;}' &lt;file&gt;</code> prints every line of a
+file.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> awk <span class="st">'/one/</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="st">&gt; /two/'</span> report.txt</span></code></pre></div>
+<p>Finds <code>one</code> or <code>two</code>. The newline acts as
+or.</p>
+<p><code>awk '{print $1,$2}' test.txt</code> prints the first two
+columns. <code>$1</code> is the first item in a column.</p>
+<p><code>$NF</code> is the last column.</p>
+<h2 id="sed">sed</h2>
+<p><code>sed</code> is a stream editor. It operates on one line of a
+file at a time and makes changes for each line.</p>
+<p><code>sed [options] commands &lt;file&gt;</code></p>
+<p><code>sed '' test.txt</code> returns every line of the file.</p>
+<p><code>sed '1p' test.txt</code> prints the first line.
+<code>sed '1,5p' test.txt</code> prints the first five lines.</p>
+<p><code>'1,+4p'</code> matches the first line plus four.</p>
+<p><code>'1~2p'</code> is a range.</p>
+<p><code>'1~2d'</code> deletes the first two lines.</p>
+<p><code>-n</code> suppresses automatic printing.</p>
+<p><code>-i</code> applies the filter directly to the file.</p>
+<p><code>-i.bak</code> applies the filter directly to the file and
+creates a backup with <code>.bak</code> at the end.</p>
+<p><code>'s/old/new'</code> replaces the first instance of
+<code>old</code> with <code>new</code>.</p>
+<p><code>'s/old/new/g'</code> replaces all instances of <code>old</code>
+with <code>new</code>.</p>
+<p><code>'s/old/new/2'</code> replaces the first two instances of
+<code>old</code> with <code>new</code>.</p>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2017-06-13-linux-command-line-1.html">Linux Command Line - I/O Redirection</a></li>
+    
+      <li><a href="../posts/2017-07-04-linux-command-line-2.html">Linux Command Line - Disk Usage and Disk Filesystem</a></li>
+    
+      <li><a href="../posts/2017-06-24-using-curl-and-graphql.html">Using curl and GraphQL</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

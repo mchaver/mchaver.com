@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Tries in Haskell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Tries in Haskell</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2018-12-27</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/tree.html">tree</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#type-declaration" id="toc-type-declaration">Type
+declaration</a></li>
+<li><a href="#the-insert-function" id="toc-the-insert-function">The
+insert function</a></li>
+<li><a href="#the-member-function" id="toc-the-member-function">The
+member function</a></li>
+<li><a href="#the-delete-function" id="toc-the-delete-function">The
+delete function</a></li>
+<li><a href="#testing" id="toc-testing">Testing</a></li>
+</ul></nav>
+<p>A trie is a nice tree data structure for storing items we want to
+frequently look up. It can be used to build a simple autocomplete or
+spell checking system. It stores sequences with the same prefixes
+(beginning sequence) together to reduce space and can performs a look up
+that takes <code>O(m)</code> where <code>m</code> is the length of the
+string we search.</p>
+<p>Here is a simple trie dictionary to give you an idea of the structure
+(heat, heater, help, helper, hot, hotter, hottest). The <code>.</code>
+in the trie below shows where the words end. While we can see
+<code>he</code> in the structure, it does not have a <code>.</code> so
+it is not part of the dictionary, a lookup of <code>he</code> returns
+<code>False</code> and of <code>hot</code> returns
+<code>True</code>.</p>
+<pre><code>           h
+      /    | 
+     e     o
+/    |     |
+a    l     t.
+|    |     |
+t.   p.    t
+|    |     |
+e    e     e
+|    |     | \
+r.   r.    r. s
+              |
+              t.</code></pre>
+<h2 id="type-declaration">Type declaration</h2>
+<p>A trie is a recursive structure. At each level it has a
+<code>Bool</code> representing a potential sequence boundary and stores
+a <code>Map</code> of <code>Trie</code>s. The sequence boundaries have
+the <code>Bool</code> set to <code>True</code> and the leaf nodes have
+<code>True</code> and an empty map.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map.Lazy</span> <span class="kw">as</span> <span class="dt">Map</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Maybe</span> (fromMaybe)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Trie</span> a <span class="ot">=</span> <span class="dt">Trie</span> <span class="dt">Bool</span> (<span class="dt">Map.Map</span> a (<span class="dt">Trie</span> a)) <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Read</span>, <span class="dt">Show</span>)</span></code></pre></div>
+<p>An empty trie is simple.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">empty ::</span> <span class="dt">Trie</span> a</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>empty <span class="ot">=</span> <span class="dt">Trie</span> <span class="dt">False</span> Map.empty</span></code></pre></div>
+<h2 id="the-insert-function">The insert function</h2>
+<p>To insert and update values into a trie, we will use <a href="https://hackage.haskell.org/package/containers-0.6.0.1/docs/Data-Map-Lazy.html#v:alter">Map.alter</a>
+<code>Ord k =&gt; (Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a</code>.
+Given a function <code>f</code> it will <code>insert</code>,
+<code>update</code> or <code>delete</code> a value <code>a</code> at key
+<code>k</code>. If the function returns <code>Just</code> it will
+<code>insert</code> (if <code>k</code> does not exist) or
+<code>update</code> it, if it returns <code>Nothing</code> than it will
+delete the value at <code>k</code> if it exists.</p>
+<p>When the sequence is finished, we set the last node to
+<code>True</code> so that it knows there is a boundary when it looks up
+a sequence. While iterating throught the values of the sequence, it
+keeps the same <code>Bool</code> value, and recursively updates the
+child nodes at <code>x</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">insert ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Trie</span> a</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>insert []     (<span class="dt">Trie</span> _ nodes)     <span class="ot">=</span> <span class="dt">Trie</span> <span class="dt">True</span> nodes</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>insert (x<span class="op">:</span>xs) (<span class="dt">Trie</span> end nodes) <span class="ot">=</span> <span class="dt">Trie</span> end (Map.alter (<span class="dt">Just</span> <span class="op">.</span> insert xs <span class="op">.</span> fromMaybe empty) x nodes)</span></code></pre></div>
+<p>Now we can build a simple dictionary with <code>insert</code> and a
+helper function.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">mkTrie ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [[a]] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>mkTrie as <span class="ot">=</span> mkTrie' as empty</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    mkTrie' []     trie <span class="ot">=</span> trie</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    mkTrie' (x<span class="op">:</span>xs) trie <span class="ot">=</span> mkTrie' xs <span class="op">$</span> insert x trie</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>dictionary <span class="ot">=</span> mkTrie [<span class="st">&quot;bad&quot;</span>, <span class="st">&quot;good&quot;</span>, <span class="st">&quot;heat&quot;</span>, <span class="st">&quot;heater&quot;</span>, <span class="st">&quot;help&quot;</span>, <span class="st">&quot;helper&quot;</span>, <span class="st">&quot;hot&quot;</span>, <span class="st">&quot;hotter&quot;</span>, <span class="st">&quot;hottest&quot;</span>, <span class="st">&quot;p&quot;</span>, <span class="st">&quot;pi&quot;</span>, <span class="st">&quot;sad&quot;</span>, <span class="st">&quot;said&quot;</span>]</span></code></pre></div>
+<h2 id="the-member-function">The member function</h2>
+<p>We should check that we can find these words in the dictionary.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">member ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>member []     (<span class="dt">Trie</span> end _) <span class="ot">=</span> end</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>member (x<span class="op">:</span>xs) (<span class="dt">Trie</span> _ nodes) <span class="ot">=</span> fromMaybe <span class="dt">False</span> (member xs <span class="op">&lt;$&gt;</span> Map.lookup x nodes)</span></code></pre></div>
+<p>These return <code>True</code>:</p>
+<pre><code>λ&gt; member &quot;heat&quot; dictionary
+λ&gt; member &quot;hot&quot; dictionary
+λ&gt; member &quot;helper&quot; dictionary</code></pre>
+<p>And these return <code>False</code>:</p>
+<pre><code>λ&gt; member &quot;he&quot; dictionary
+λ&gt; member &quot;hello&quot; dictionary
+λ&gt; member &quot;goodbye&quot; dictionary</code></pre>
+<h2 id="the-delete-function">The delete function</h2>
+<p>This function gave me the most trouble because you need to keep track
+of which sequences are shared. For example, “help” and “helper” both
+share “help”. When we delete “helper”, we still need to keep “help”. We
+need to consider the following patterns when deleting:</p>
+<h4 id="forked">forked</h4>
+<pre><code>  m
+  |
+  e
+ / \
+ t. e
+    |
+    t.</code></pre>
+<h4 id="in-line">in-line</h4>
+<pre><code>  h
+  |
+  e
+  |
+  a
+  |
+  t.
+  |
+  e
+  |
+  r.</code></pre>
+<h4 id="separate-paths">separate paths</h4>
+<pre><code>  g  b
+  |  |
+  o  a
+  |  |
+  o  d.
+  |
+  d.</code></pre>
+<p>The main idea is to start from the top of the trie and follow the
+sequence all the way down, if certain conditions are met, then we can
+delete the sequence, if not, we continue through the subsequences
+checking if we can delete anything. In case we want to delete a boundary
+that is not at a leaf, we the list is empty, we check if there are any
+children, if there are we set it to <code>False</code>. It took a bit of
+trial, error and unit testing to write these functions so I will not
+claim that they are correct yet.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ot">lengthOfChildNodes ::</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>lengthOfChildNodes (<span class="dt">Trie</span> _ nodes) <span class="ot">=</span> Map.size nodes</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="ot">deletable ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>deletable []       (<span class="dt">Trie</span> _ nodes) <span class="ot">=</span> Map.null nodes</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>deletable (x <span class="op">:</span> xs) (<span class="dt">Trie</span> end nodes) <span class="ot">=</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  (<span class="fu">length</span> xs <span class="op">==</span> <span class="dv">0</span> <span class="op">||</span> <span class="fu">not</span> end) <span class="op">&amp;&amp;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">maybe</span> <span class="dt">False</span> (\t <span class="ot">-&gt;</span> deletable xs t <span class="op">&amp;&amp;</span> (<span class="fu">length</span> xs <span class="op">==</span> <span class="dv">0</span> <span class="op">||</span> (lengthOfChildNodes t) <span class="op">&lt;</span> <span class="dv">1</span>)) (Map.lookup x nodes)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="ot">delete ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Trie</span> a</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>delete as t <span class="ot">=</span> <span class="kw">if</span> member as t <span class="kw">then</span> delete' as t <span class="kw">else</span> t</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    delete' as<span class="op">@</span>(x <span class="op">:</span> xs) t<span class="op">@</span>(<span class="dt">Trie</span> end nodes) <span class="ot">=</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>      <span class="kw">if</span> deletable as t</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">then</span> <span class="dt">Trie</span> end (Map.delete x nodes)</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">else</span> <span class="dt">Trie</span> end (Map.alter (<span class="dt">Just</span> <span class="op">.</span> delete' xs <span class="op">.</span> fromMaybe empty) x nodes)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    delete' [] t<span class="op">@</span>(<span class="dt">Trie</span> end nodes) <span class="ot">=</span> <span class="kw">if</span> Map.size nodes <span class="op">&gt;</span> <span class="dv">0</span> <span class="kw">then</span> <span class="dt">Trie</span> <span class="dt">False</span> nodes <span class="kw">else</span> t</span></code></pre></div>
+<p>The <code>delete</code> function is slow because it repeatedly traces
+over the same path as it gets smaller until it is deleted. If you need
+to perform delete a lot on a trie, one idea is to keep track of what
+paths are deletable with and extra boolean flag on each level. You would
+need to update the <code>insert</code> function to support this.</p>
+<h2 id="testing">Testing</h2>
+<p>Here are the tests I used to develop the functions.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> hspec <span class="op">$</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  describe <span class="st">&quot;delete&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;forked&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> delete <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> delete <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;inline&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;help&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;helper&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;helper&quot;</span> <span class="op">$</span> delete <span class="st">&quot;help&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> delete <span class="st">&quot;said&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;said&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;p&quot;</span>      <span class="op">$</span> delete <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> delete <span class="st">&quot;p&quot;</span>      <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;help&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;help&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;helper&quot;</span> <span class="op">$</span> delete <span class="st">&quot;helper&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;heat&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;heat&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> delete <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;said&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;said&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;p&quot;</span>      <span class="op">$</span> delete <span class="st">&quot;p&quot;</span>      <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> delete <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;separate paths&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;good&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;good&quot;</span> <span class="op">$</span> delete <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;good&quot;</span> <span class="op">$</span> delete <span class="st">&quot;good&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span></code></pre></div>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-24-binary-search-tree-in-haskell.html">Binary Search Tree in Haskell</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

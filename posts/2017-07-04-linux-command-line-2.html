@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Linux Command Line - Disk Usage and Disk Filesystem</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Linux Command Line - Disk Usage and Disk Filesystem</h1>
+          
+<nav class="series-nav">
+  <div class="series-label">Series: Linux Command Line</div>
+  <ol>
+    
+      <li><a href="../posts/2017-06-13-linux-command-line-1.html">Linux Command Line - I/O Redirection</a></li>
+    
+      <li><span class="current">Linux Command Line - Disk Usage and Disk Filesystem</span></li>
+    
+      <li><a href="../posts/2017-07-05-linux-command-line-3.html">Linux Command Line - find, which, whereis, grep, awk, sed</a></li>
+    
+  </ol>
+</nav>
+
+
+<div class="post-meta">
+  <div class="post-date-line">2017-07-04</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
+    <a class="tag" href="../tags/linux.html">linux</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#disk-usage" id="toc-disk-usage">Disk Usage</a></li>
+<li><a href="#disk-filesystem" id="toc-disk-filesystem">Disk
+Filesystem</a></li>
+</ul></nav>
+<p><code>du</code> displays disk usage information and <code>df</code>
+displays disk filesystem information. These commands also work on Mac OS
+X.</p>
+<h2 id="disk-usage">Disk Usage</h2>
+<p><code>du &lt;path&gt;</code> displays size of each subdirectory in
+the path and the total sum of the size of all directories in the path in
+bytes. <code>du</code> is equivalent to <code>du ./</code>.</p>
+<p><code>du -h</code> displays the data in human readable format. It
+round sizes up to their largest unit and the unit abbreviation: bytes
+<code>B</code>, kilobytes <code>K</code>, megabytes <code>M</code>,
+gigabytes <code>G</code>, etc.</p>
+<p><code>du -sh</code> provides the total size of the path in human
+readable format. It may be slow if there are many subdirectories.</p>
+<h4 id="data-sizes">Data sizes</h4>
+<ul>
+<li>1 bit <code>b</code></li>
+<li>1 byte <code>B</code> = 8 bits</li>
+<li>1 kilobyte <code>KB</code> (1024) = 1024 bytes</li>
+<li>1 megabyte <code>MB</code> (1024^2) = 1024 kilobytes</li>
+<li>1 gigabyte <code>GB</code> (1024^3) = 1024 gigabytes</li>
+<li>1 terabyte <code>TB</code> (1024^4) = 1024 gigbaytes</li>
+</ul>
+<h2 id="disk-filesystem">Disk Filesystem</h2>
+<p><code>df</code> displays device name, block size, disk space, used
+disk space, available disk space and mount points.</p>
+<p><code>df -h</code> displays the same as above but in human readable
+format.</p>
+<h4 id="block">block</h4>
+<p>A sequence of bytes or bits of a particular length, the block size.
+Putting data into blocks is blocking and extracting data from a block is
+deblocking. It helps reduce overhead and speed up data streams.</p>
+<h4 id="mount">mount</h4>
+<p><code>mount</code> command instructs an operating system that a file
+system is ready for use. It associates a point in the file system (the
+mount point) to another file system. File systems, files, directories
+and devices (USB, CD-ROMs, DVDs, etc.) can be mounted.</p>
+<p><code>umount</code> dissociates a mount point from its
+filesystem.</p>
+<h4 id="device-name">device name</h4>
+<p>A device file is an interface for a device driver that appears in the
+file system as if it were an ordinary file. In Unix systems most devices
+appear as files in a virtual file system.</p>
+<h4 id="inode">inode</h4>
+<p>A Unix data structure that describe objects in a file system like
+files and directories. It stores disk block location, owner and
+permissions data and time of last change, access and modification.</p>
+<p>POSIX standards requires the following:</p>
+<ul>
+<li>size of file in bytes</li>
+<li>device id of the device the file belongs to</li>
+<li>file owner’s user id</li>
+<li>file’s group id</li>
+<li>file mode</li>
+<li>system and user flags</li>
+<li>inode last modified, file content last modified and time last
+accessed</li>
+<li>count of hard links pointing to the inode</li>
+<li>pointers to the disk blocks that store the file’s contents</li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2017-07-05-linux-command-line-3.html">Linux Command Line - find, which, whereis, grep, awk, sed</a></li>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-3.html">Linux Network Tools - netstat</a></li>
+    
+      <li><a href="../posts/2017-06-13-linux-network-tools-2.html">Linux Network Tools - cURL</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

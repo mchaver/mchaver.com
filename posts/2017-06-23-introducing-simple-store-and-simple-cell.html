@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Introducing simple-store and simple-cell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Introducing simple-store and simple-cell</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-23</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/db.html">db</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#review" id="toc-review">Review</a></li>
+<li><a href="#dependencies" id="toc-dependencies">Dependencies</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>simple-store<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> provides persistence, atomicity and
+consistency for a shared data type. simple-cell<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>
+uses simple-store and directed-keys<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> to create multiple
+atomic values with the unique keys. We will review a few concepts before
+discussing these packages further.</p>
+<h2 id="review">Review</h2>
+<h4 id="concurrency-control">Concurrency control</h4>
+<p>Concurrency control<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> ensures that concurrent operations
+are safe and fast and solves the following problems:</p>
+<ul>
+<li>lost update</li>
+<li>dirty read</li>
+<li>incorrect summary</li>
+</ul>
+<p>We will only discuss one type here, optimistic concurrency
+control.</p>
+<h4 id="optimistic-concurrency-control-occ">Optimistic concurrency
+control (OCC)</h4>
+<p>OCC<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> assumes that multiple transactions
+can be made frequently without interfering with each other. OCC does not
+use locks<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>. Rather, before committing each
+transaction, it verifies that no other transaction has modified the data
+it has read. If the check reveals that modifications have occurred, the
+committing transaction rolls back and can be restarted. OCC is good for
+environments with low data contention.</p>
+<h4 id="occ-phases">OCC phases</h4>
+<ul>
+<li>begin: record a timestamp which marks the beginning of a
+transaction.</li>
+<li>modify: read db values, tentatively write changes.</li>
+<li>validate: check if other transactions have modified the data that
+the transaction has read/wrote.</li>
+<li>commit/rollback: if there is no conflict, make all changes take
+effect, otherwise abort the changes.</li>
+</ul>
+<h4 id="software-transactional-memory-stm">Software transactional memory
+(STM)</h4>
+<p>STM<a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a> is a type of OCC. A thread modifies
+shared memory without concern for what other threads may be doing to
+that memory. STM makes the reader responsible for making sure nothing is
+operating on the shared memory.</p>
+<h4 id="concurrent-haskell-and-stm">Concurrent Haskell and STM</h4>
+<h4 id="mvar">MVar</h4>
+<p><code>MVar t</code><a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a> is a mutable location that is empty
+or contains a value <code>t</code>.</p>
+<ul>
+<li><code>putMVar</code> sets the value in an <code>MVar</code>.</li>
+<li><code>readMVar</code> gets the value in an <code>MVar</code> and
+sets it to the value it just took.</li>
+<li><code>takeMVar</code> gets the value in an <code>MVar</code> and
+sets the value to empty.</li>
+</ul>
+<h4 id="tmvar">TMVar</h4>
+<p><code>TMVar t</code><a href="#fn9" class="footnote-ref" id="fnref9" role="doc-noteref"><sup>9</sup></a> is the STM version of
+<code>MVar</code> and is thread safe.</p>
+<ul>
+<li><code>putTMVar</code> sets the value in an <code>TMVar</code>.</li>
+<li><code>readTMVar</code> gets the value in an <code>TMVar</code> and
+sets it to the value it just took.</li>
+<li><code>takeTMVar</code> gets the value in an <code>TMVar</code> and
+sets the value to empty.</li>
+</ul>
+<h2 id="dependencies">Dependencies</h2>
+<h4 id="cereal">cereal</h4>
+<p>cereal<a href="#fn10" class="footnote-ref" id="fnref10" role="doc-noteref"><sup>10</sup></a> is a package the performs binary
+serialization. By declaring an instance of the <code>Serialize</code>
+type class, we can perform serialization and deserialization on a type.
+It can also use <code>GHC.Generics</code> to automatically declare a
+<code>Serialize</code> instance.</p>
+<h4 id="directed-keys">directed-keys</h4>
+<p>directed-keys provides a data type and functions to serialize data to
+and from Base64<a href="#fn11" class="footnote-ref" id="fnref11" role="doc-noteref"><sup>11</sup></a>.</p>
+<ul>
+<li><code>DirectedKeyRaw</code> is data type that has a unique key, a
+source url/file path, a destination url/file path and a time. They all
+need an instance of <code>Hashable</code> and
+<code>Serialize</code>.</li>
+<li><code>DirectedKey</code> is a <code>ByteString</code> of the data in
+<code>DirectedKeyRaw</code>.</li>
+<li><code>encodeKeyRaw</code> is like <code>DKeyRaw</code> constructor,
+but it enforces the <code>Serialize</code> restriction on the keys.</li>
+<li><code>encodeKey</code> and <code>decodeKey</code> to an from a
+base64 <code>ByteString</code>.</li>
+<li><code>parseFilename</code> and <code>decodeFilename</code> escape
+and unescape the necesssary Unix characters in a file path.</li>
+</ul>
+<h4 id="simple-store">simple-store</h4>
+<p>The main data type is <code>SimpleStore</code>. You do not need to
+manipulate <code>SimpleStore</code> records directly. simple-store
+provides a set of functions to save and retrieve data via the
+<code>SimpleStore</code> data type and filesystem.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">SimpleStore</span> st <span class="ot">=</span> </span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">SimpleStore</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> storeFP     ::</span> <span class="dt">FilePath</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> storeState  ::</span> <span class="dt">TVar</span> st</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> storeLock   ::</span> <span class="dt">TMVar</span> <span class="dt">StoreLock</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> storeHandle ::</span> <span class="dt">Maybe</span> <span class="dt">Handle</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    }</span></code></pre></div>
+<p>The most important functions are:</p>
+<ul>
+<li><code>makeSimpleStore</code> save a serializable type to a file</li>
+<li><code>openSimpleStore</code> read a deserializable type from a
+file</li>
+<li><code>getSimpleStore</code> get the data type value from the
+<code>SimpleStore</code>.</li>
+<li><code>modifySimpleStore</code></li>
+<li><code>updateSimpleStore</code></li>
+</ul>
+<h4 id="simple-cell">simple-cell</h4>
+<p>A <code>SimpleCell</code> takes a function to retrieve keys and a
+function to make those keys into filenames. It maintains a key-value
+pair of filename to <code>SimpleStore</code>. By convention, simple-cell
+uses a type suffixed <code>Store</code> as a newtype wrapped entity of
+an entity with DB specific properties (like external keys).</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">User</span> <span class="ot">=</span> <span class="dt">User</span> </span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> name ::</span> <span class="dt">String</span> </span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">UserStore</span> <span class="ot">=</span> <span class="dt">UserStore</span> </span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> userKey   ::</span> <span class="op">!</span><span class="dt">Int</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> userValue ::</span> <span class="op">!</span><span class="dt">Maybe</span> <span class="dt">User</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  } </span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">deriving</span> (<span class="dt">Eq</span>,<span class="dt">Generic</span>,<span class="dt">Show</span>)</span></code></pre></div>
+<p>The general work flow is:</p>
+<ul>
+<li>Declare CellKey value for the data type we want to store.</li>
+<li>Generate functions with Template Haskell.</li>
+<li>Initialize a <code>SimpleStore</code>.</li>
+<li>Pass the cell around manually or with <code>ReaderT</code>.</li>
+<li>Insert data with <code>insert&lt;Type&gt;SC</code>.</li>
+<li>Perform batch operations with
+<code>foldlWithKey&lt;Type&gt;SC</code></li>
+<li>Get stores out the cell with <code>get&lt;Type&gt;SC</code>.</li>
+</ul>
+<p>We need to define three functions for <code>CellKey</code> for
+looking up, decoding and encoding a <code>DirectedKeyRaw</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">CellKey</span> k src dst tm st <span class="ot">=</span> <span class="dt">CellKey</span> </span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> getKey                ::</span> st <span class="ot">-&gt;</span> <span class="dt">DirectedKeyRaw</span> k src dst tm</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> codeCellKeyFilename   ::</span> <span class="dt">DirectedKeyRaw</span> k src dst tm <span class="ot">-&gt;</span> <span class="dt">Text</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> decodeCellKeyFilename ::</span> (<span class="dt">Text</span> <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">Text</span> (<span class="dt">DirectedKeyRaw</span> k src dst tm)) </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  }</span></code></pre></div>
+<p>Then we use Template Haskell to produce a set of type specific
+functions.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">$</span>(makeStoreCell 'userStoreCellKey 'initUser '<span class="dt">'User</span>)</span></code></pre></div>
+<p><code>makeStoreCell</code> generates the following functions, but you
+have to provide the type signature for each of them to help the Template
+Haskell.</p>
+<ul>
+<li><code>get&lt;Type&gt;SC</code></li>
+<li><code>update&lt;Type&gt;SC</code></li>
+<li><code>createCheckpointAndClose&lt;Type&gt;SC</code></li>
+<li><code>traverseWithKey&lt;Type&gt;SC_</code></li>
+<li><code>insert&lt;Type&gt;SC</code></li>
+<li><code>delete&lt;Type&gt;SC</code></li>
+<li><code>foldlWithKey&lt;Type&gt;SC</code></li>
+<li><code>initialize&lt;Type&gt;SC</code></li>
+</ul>
+<p>We generally do not need to manipulate the <code>SimpleCell</code>
+data type directly, but it is helpful to know what it contains.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">SimpleCell</span>  k src dst tm stlive stdormant <span class="ot">=</span> <span class="dt">SimpleCell</span> {</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  {<span class="ot"> cellCore     ::</span> <span class="op">!</span>(<span class="dt">TCellCore</span>  k src dst tm (<span class="dt">SimpleStore</span> stlive) stdormant )</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> cellKey      ::</span> <span class="op">!</span>(<span class="dt">CellKey</span>  k src dst tm stlive)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> cellParentFP ::</span> <span class="op">!</span><span class="dt">FilePath</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  ,<span class="ot"> cellRootFP   ::</span> <span class="op">!</span><span class="dt">FilePath</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  } <span class="kw">deriving</span> (<span class="dt">Typeable</span>,<span class="dt">Generic</span>)</span></code></pre></div>
+<ul>
+<li><code>cellCore</code> is an in-memory representation of the map of
+keys and <code>SimpleStore</code>s.</li>
+<li><code>cellKey</code> is the key provided by the user.</li>
+<li><code>cellParentFP</code> is the file path that the root of the
+project is in.</li>
+<li><code>cellRootFP</code> is the file path that the cell
+occupies.</li>
+</ul>
+<p>Types to remember for simple-cell:</p>
+<ul>
+<li><code>DirectedKeyRaw</code></li>
+<li><code>CellKey</code></li>
+<li><code>SimpleCell</code></li>
+<li><code>SimpleStore</code></li>
+</ul>
+<p>For a complete example, take a look at the <a href="https://github.com/plow-technologies/simple-cell/blob/master/test/TestImport.hs">simple-cell
+tests</a>.</p>
+<h2 id="references">References</h2>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p><a href="https://github.com/plow-technologies/simple-store">Github ::
+simple-store</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://github.com/plow-technologies/simple-cell">Github ::
+simple-cell</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://github.com/plow-technologies/directed-keys">Github ::
+directed-keys</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p><a href="https://en.wikipedia.org/wiki/Concurrency_control">Wikipedia ::
+Concurrency control</a><a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p><a href="https://en.wikipedia.org/wiki/Optimistic_concurrency_control">Wikipedia
+:: Optimistic concurrency control</a><a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p><a href="https://en.wikipedia.org/wiki/Lock_(computer_science)">Wikipedia
+:: Lock (computer science)</a><a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7"><p><a href="http://book.realworldhaskell.org/read/software-transactional-memory.html">Real
+World Haskell :: Software transactional memory</a><a href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8"><p><a href="https://hackage.haskell.org/package/base-4.9.1.0/docs/Control-Concurrent-MVar.html">Hackage
+:: stm :: MVar</a><a href="#fnref8" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn9"><p><a href="https://hackage.haskell.org/package/stm-2.4.4.1/docs/Control-Concurrent-STM-TMVar.html">Hackage
+:: stm :: TMVar</a><a href="#fnref9" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn10"><p><a href="https://hackage.haskell.org/package/cereal-0.5.4.0/docs/Data-Serialize.html">Hackage
+:: cereal</a><a href="#fnref10" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn11"><p><a href="https://en.wikipedia.org/wiki/Base64">Wikipedia :: Base64</a><a href="#fnref11" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

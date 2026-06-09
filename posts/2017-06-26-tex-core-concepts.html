@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - TeX Core Concepts</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>TeX Core Concepts</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-26</div>
+  <div class="post-tags-line">
+    <a class="kind kind-reference" href="../kinds/reference.html">reference</a>
+    <a class="tag" href="../tags/TeX.html">TeX</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#control-character" id="toc-control-character">Control
+character</a></li>
+<li><a href="#control-sequence" id="toc-control-sequence">Control
+sequence</a></li>
+<li><a href="#boxes" id="toc-boxes">Boxes</a></li>
+<li><a href="#glue" id="toc-glue">Glue</a></li>
+<li><a href="#modes" id="toc-modes">Modes</a></li>
+<li><a href="#macros" id="toc-macros">Macros</a></li>
+<li><a href="#fonts" id="toc-fonts">Fonts</a></li>
+<li><a href="#category-codes" id="toc-category-codes">Category
+codes</a></li>
+<li><a href="#keywords" id="toc-keywords">Keywords</a></li>
+<li><a href="#primitive-sequences" id="toc-primitive-sequences">Primitive sequences</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>TeX is a program that typesets boxes. TeX builds pages based on boxes
+and glue. Each character is a box which is glued to other letters to
+form words. The glue is elastic so it can be manipulated to fill the
+page optimally. Boxes may be contained by other boxes.</p>
+<h2 id="control-character">Control character</h2>
+<p>A control character (non-printing character) is a code point (a
+number) in a character set, that does not represent a written
+symbol.</p>
+<h2 id="control-sequence">Control sequence</h2>
+<p>A <code>\</code> followed by a sequence of control characters.</p>
+<ul>
+<li><strong>TeX primitives</strong> are native commands:
+<code>\def</code>, <code>\font</code>, etc.</li>
+<li><strong>macros</strong> are sequences defined with
+<code>\def</code>.</li>
+<li><strong>registers</strong> are variables to save values:
+<code>\baselineskip</code>, <code>\countdef</code>,
+<code>\dimendef</code>.</li>
+<li><strong>character constants</strong> are sequences declared by the
+primitives <code>\chardef</code> or <code>\mathchardef</code>:
+<code>\$</code>, <code>\alpha</code>, <code>\sum</code>.</li>
+<li><strong>font selectors</strong> are sequences declared by the
+primitive <code>\font</code>.</li>
+</ul>
+<p>An undefined control sequence is any control sequence which has no
+meaning assigned to it.</p>
+<h2 id="boxes">Boxes</h2>
+<p>TeX has for primitive box control sequences.</p>
+<ul>
+<li><code>\hbox</code> horizontal box.</li>
+<li><code>\vbox</code> vertical box with reference point at the last
+item inside it.</li>
+<li><code>\vtop</code> vertical box with reference point at the first
+item inside it.</li>
+<li><code>\vcenter</code> vertical box with reference point in the
+middle.</li>
+</ul>
+<h4 id="baseline">baseline</h4>
+<p>The baseline of a box is a vertical line that divides the box. It is
+used as a reference point for placing things in the box. Characters like
+<code>'x'</code> start at or slightly above the baseline and never cross
+it. Other characters like <code>'y'</code> rest on the baseline and its
+tail crosses it.</p>
+<h4 id="height">height</h4>
+<p>The distance from the baseline to the top of the box.</p>
+<h4 id="depth">depth</h4>
+<p>The distance from the baseline to the bottom of the box.</p>
+<h4 id="width">width</h4>
+<p>The horizontal length of a box.</p>
+<h4 id="reference-point">reference point</h4>
+<p>Where the baseline and the left-side of the box meet.</p>
+<h4 id="badness">badness</h4>
+<p>Badness is a measure for the quality of a box made by TeX. It is an
+integer value between 0 and 10000. <code>\badness</code> is set by TeX
+each time it constructs a box. If there is an overflow error then
+<code>\badness</code> is set to 1000000.</p>
+<h4 id="overfull-error">overfull error</h4>
+<p>TeX could not produce a result that does not overfill a box. This is
+generally do to a justification or hyphenation error.</p>
+<h4 id="underfull-error">underfull error</h4>
+<p>TeX could not appropriately fill the box. TeX could not stretch the
+box wide enough without making the space bigger than permitted.</p>
+<h4 id="characters">characters</h4>
+<p>In TeX, characters are stored in boxes like every printed
+element.</p>
+<h2 id="glue">Glue</h2>
+<p>Glue is the white space between boxes. Glue can expand and contract
+during the construction to give optimal positioning for boxes. At some
+point becomes set and cannot change. It is displayed as white space.</p>
+<h2 id="modes">Modes</h2>
+<p>When processing a <code>tex</code> source file, <code>TeX</code>
+operates in one of the following modes.</p>
+<h4 id="vertical-mode">vertical mode</h4>
+<p>TeX stack boxes on top of each other in vertical lists.</p>
+<h4 id="internal-vertical-mode">internal vertical mode</h4>
+<p>TeX builds a vertical list for a vbox.</p>
+<h4 id="horizontal-mode">horizontal mode</h4>
+<p>TeX stacks boxes next to each other in horizontal lists.</p>
+<h4 id="restricted-horizontal-mode">restricted horizontal mode</h4>
+<p>TeX builds a horizontal list for a hbox. No line break allowed.</p>
+<h4 id="math-mode">math mode</h4>
+<p>TeX builds a mathematical formula for a horizontal list.</p>
+<h4 id="display-math-mode">display math mode</h4>
+<p>TeX builds a mathematical formula to be placed on a line itself. This
+interrupts the current paragraph.</p>
+<h2 id="macros">Macros</h2>
+<p>A macro is a rule that specifies how a control sequence should be
+mapped to a replacement output sequence. The primitive control sequence
+<code>\def</code> allows us to define new macros. Macros support up to
+nine arguments.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode latex"><code class="sourceCode latex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\def</span> &lt;command&gt; &lt;parameter-text&gt;{&lt;replacement-text&gt;}</span></code></pre></div>
+<p>The first argument must be delimited by two square brackets while the
+second may be a single character.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode latex"><code class="sourceCode latex"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">\def</span> <span class="fu">\foo</span> [#1]#2{The first argument is ``#1'', the second one is ``#2''}</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">\foo</span>{Hello}{Goodbye}</span></code></pre></div>
+<h2 id="fonts">Fonts</h2>
+<p>Originally intended to use its own font system, MetaFont. Computer
+Modern is the default font system for TeX. These are high quality,
+scalable fonts. MetaFont is a complex font system. Most modern TeX
+compilers allow for the use of external font systems such as Truetype
+font (ttf) and OpenType font (otf).</p>
+<h2 id="category-codes">Category codes</h2>
+<p>When TeX parses an input, it assigns it a category code. TeX uses the
+character and its category to determine how to interpret it. These are
+used as primitive commands for common tasks.</p>
+<p>There are sixteen category codes:</p>
+<ul>
+<li>0 = escape <code>\</code></li>
+<li>1 = group start <code>{</code></li>
+<li>2 = group end <code>}</code></li>
+<li>3 = math shift <code>$</code></li>
+<li>4 = alignment tab <code>&amp;</code></li>
+<li>5 = end of line</li>
+<li>6 = parameter for macros <code>#</code></li>
+<li>7 = math superscript <code>^</code></li>
+<li>8 = math subscript <code>_</code></li>
+<li>9 = ignored character</li>
+<li>10 = space</li>
+<li>11 = letters of the alphabet</li>
+<li>12 = other character <code>.</code>, <code>1</code>,
+<code>:</code></li>
+<li>13 = active character <code>~</code></li>
+<li>14 = comment <code>%</code></li>
+<li>15 = invalid character <code>[DEL]</code></li>
+</ul>
+<h2 id="keywords">Keywords</h2>
+<p>TeX has 25 keywords. There are no backslashes before them. TeX
+interprets them depending on the mode.</p>
+<pre><code>at  dd    fill   mm   sp
+by  depth filll  mu   spread
+bp  em    height pc   to
+cc  ex    in     plus true
+cm  fil   minus  pt   width</code></pre>
+<h2 id="primitive-sequences">Primitive sequences</h2>
+<p>TeX has 325 primitive control sequences.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="http://webpages.charter.net/davidlha/trm.html">TeX
+Primitive Control Sequences</a></li>
+</ul>
+
+
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

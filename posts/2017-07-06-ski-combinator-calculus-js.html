@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - SKI Combinator Calculus in JavaScript</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>SKI Combinator Calculus in JavaScript</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-07-06</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/combinator%20calculus.html">combinator calculus</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#combinatory-terms" id="toc-combinatory-terms">Combinatory
+terms</a></li>
+<li><a href="#primitive-combinators" id="toc-primitive-combinators">Primitive Combinators</a></li>
+<li><a href="#examples" id="toc-examples">Examples</a></li>
+<li><a href="#javascript-implementation" id="toc-javascript-implementation">JavaScript Implementation</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<p>Combinatory logic is a variant of lambda calculus that does not have
+bound variables. SKI combinator calculus is a combinatory logic, a
+reduced version of untyped lambda calculus. While it is impractical for
+real world use, it is an extremely simple Turing complete language.
+Lambda calculus can be translated into SKI calculus as binary trees.
+Combinatory logic eliminates free variables. A combinator is a
+higher-order function that uses only function application to define a
+result.</p>
+<h2 id="combinatory-terms">Combinatory terms</h2>
+<ul>
+<li><code>x</code> variable</li>
+<li><code>P</code> primitive function</li>
+<li><code>(E₁E₂)</code> application of combinatory terms</li>
+</ul>
+<h2 id="primitive-combinators">Primitive Combinators</h2>
+<p>It requires only two primitive functions:</p>
+<ul>
+<li><code>K x y = x</code> constance function</li>
+<li><code>S x y z = x z (y z)</code> substitution function</li>
+</ul>
+<p>but commonly there is a third primitive function for convenience.</p>
+<ul>
+<li><code>I x = x</code> identity function</li>
+</ul>
+<p><code>I</code> is the same as <code>SKK</code>.</p>
+<h2 id="examples">Examples</h2>
+<p>Identify without the primitive identity function.</p>
+<pre><code>((S K K) x)
+    = (S K K x)
+    = (K x (K x))
+    = x</code></pre>
+<p>Constant function.</p>
+<pre><code>(K (K a b) (K a))
+    = (K (a) (K a))
+    = a</code></pre>
+<p>Limited reduction.</p>
+<pre><code>(K a)
+    = (K a)</code></pre>
+<p>Boolean logic. True is <code>T</code> and returns the first
+argument.</p>
+<pre><code>Txy = Kxy = x</code></pre>
+<p>False is <code>F</code> and returns the second argument.</p>
+<pre><code>SKxy = Ky(xy) = y</code></pre>
+<h2 id="javascript-implementation">JavaScript Implementation</h2>
+<p>There is a <code>cons</code> function to create LISP style cons
+lists. The <code>mkExpression</code> function creates an associative
+array with a <code>type</code>, <code>primitive</code> or
+<code>variable</code> and a <code>value</code> which is a single
+character.</p>
+<h4 id="stringtotree">stringToTree</h4>
+<p>Remove all white space because there may be multiple white spaces
+between parentheses and single character primitives and variables. Then
+prepend everything with a white space to be able to split everything
+into an array and use <code>fold</code> to create a cons binary
+tree.</p>
+<h4 id="fold">fold</h4>
+<p>Recursively build a cons binary tree from an array.</p>
+<h4 id="fixedpoint">fixedPoint</h4>
+<p>Recursively <code>reduce</code> a tree until <code>reduce</code> does
+not make any changes to the tree.</p>
+<h4 id="reduce">reduce</h4>
+<p>Perform <code>convert</code> on a subtree if the node has a primitive
+on the left hand side.</p>
+<h4 id="convert">convert</h4>
+<p>If the <code>leftDepth</code> matches the number of arguments that a
+primitive takes and a primitive exists at that left side depth, perform
+a reduction.</p>
+<h4 id="leftdepth">leftDepth</h4>
+<p>Count the number of <code>car</code>s in a tree.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Combinatory_logic">Wikipedia
+:: Combinatory logic</a></li>
+<li><a href="https://en.wikipedia.org/wiki/SKI_combinator_calculus">Wikipedia
+:: SKI combinator calculus</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Unlambda">Wikipedia ::
+Unlambda</a></li>
+</ul>
+
+
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

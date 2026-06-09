@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Improved Type-Level FizzBuzz</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Improved Type-Level FizzBuzz</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2018-12-28</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/type-level.html">type-level</a>
+  </div>
+</div>
+
+<p>This is a slight improvment of the code in my previous post <a href="../posts/2018-12-16-type-level-fizzbuzz.html">A Preliminary Attempt
+at Type-Level FizzBuzz</a>. The credit goes to my friend <a href="https://shulhi.com/">Shulhi Sapli</a>. He took a look at my code
+and came up with a cleaner solution. This part should be straightforward
+if you were able to folow the code from the previous post.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DataKinds #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE PolyKinds #-}</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeOperators #-}</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeFamilies #-}</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeInType #-}</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Kind</span> (<span class="dt">Type</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Proxy</span> (<span class="dt">Proxy</span>(..))</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">GHC.TypeLits</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">IsZero</span> (<span class="ot">a ::</span> <span class="dt">Nat</span>)<span class="ot"> ::</span> <span class="dt">Bool</span> <span class="kw">where</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IsZero</span> <span class="dv">0</span> <span class="ot">=</span> <span class="dt">'True</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IsZero</span> _ <span class="ot">=</span> <span class="dt">'False</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">ModRemainderIsZero</span> (<span class="ot">a ::</span> <span class="dt">Nat</span>) (<span class="ot">b ::</span> <span class="dt">Nat</span>) <span class="kw">where</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ModRemainderIsZero</span> a b <span class="ot">=</span> <span class="dt">IsZero</span> (<span class="dt">Mod</span> a b)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">FizzBuzz'</span> (<span class="ot">a ::</span> <span class="dt">Bool</span>) (<span class="ot">b ::</span> <span class="dt">Bool</span>) c <span class="kw">where</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz'</span> <span class="dt">'True</span> <span class="dt">'True</span> _ <span class="ot">=</span> <span class="st">&quot;FizzBuzz&quot;</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz'</span> _     <span class="dt">'True</span> _ <span class="ot">=</span> <span class="st">&quot;Fizz&quot;</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz'</span> <span class="dt">'True</span> _     _ <span class="ot">=</span> <span class="st">&quot;Buzz&quot;</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz'</span> _     _     c <span class="ot">=</span> <span class="dt">NatToSym</span> c</span></code></pre></div>
+<p><code>ConcatSymbols</code> is a type-level function to concat each
+<code>Symbol</code> with a line break in between each value. That way we
+can transform a list of <code>Nat</code> with <code>NatToSym</code> and
+<code>ConcatSymbols</code> into a single <code>Symbol</code>, turn it
+into a <code>String</code> and print it.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">ConcatSymbols</span> xs <span class="kw">where</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ConcatSymbols</span> '[] <span class="ot">=</span> <span class="st">&quot;&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ConcatSymbols</span> (x '<span class="op">:</span> xs) <span class="ot">=</span> <span class="dt">AppendSymbol</span> x (<span class="dt">AppendSymbol</span> <span class="st">&quot;\n&quot;</span> (<span class="dt">ConcatSymbols</span> xs))</span></code></pre></div>
+<p>The nicest part is he found a solution to type-level function
+mapping. He got the idea from (Thinking with Types Type-Level
+Programming in Haskell)[http://thinkingwithtypes.com/] in chapter 10.
+This type-level technique is called <a href="https://en.wikipedia.org/wiki/Defunctionalization">defunctionalization</a>,
+which allows for higher order type-level functions in Haskell.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Exp</span> a <span class="ot">=</span> a <span class="ot">-&gt;</span> <span class="dt">Type</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">Eval</span> (<span class="ot">e ::</span> <span class="dt">Exp</span> a)<span class="ot"> ::</span> a</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">MapList</span><span class="ot"> ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Exp</span> b) <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Exp</span> [b]</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Eval</span> (<span class="dt">MapList</span> f '[]) <span class="ot">=</span> '[]</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Eval</span> (<span class="dt">MapList</span> f (a '<span class="op">:</span> as)) <span class="ot">=</span> <span class="dt">Eval</span> (f a) '<span class="op">:</span> <span class="dt">Eval</span> (<span class="dt">MapList</span> f as)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">FizzBuzz</span><span class="ot"> ::</span> <span class="dt">Nat</span> <span class="ot">-&gt;</span> <span class="dt">Exp</span> <span class="dt">Symbol</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Eval</span> (<span class="dt">FizzBuzz</span> n) <span class="ot">=</span> <span class="dt">FizzBuzz'</span> (<span class="dt">ModRemainderIsZero</span> n <span class="dv">3</span>) (<span class="dt">ModRemainderIsZero</span> n <span class="dv">5</span>) n</span></code></pre></div>
+<p>Now we just need a list of <code>Nat</code>s and we can map
+<code>FizzBuzz</code> and <code>ConcatSymbols</code> to get a
+<code>Symbol</code>. Much cleaner than the previous version.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Nums</span> <span class="ot">=</span> '[<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>,<span class="dv">6</span>,<span class="dv">7</span>,<span class="dv">8</span>,<span class="dv">9</span>,<span class="dv">10</span>,<span class="dv">11</span>,<span class="dv">12</span>,<span class="dv">13</span>,<span class="dv">14</span>,<span class="dv">15</span>]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Result</span> <span class="ot">=</span> <span class="dt">ConcatSymbols</span> (<span class="dt">Eval</span> (<span class="dt">MapList</span> <span class="dt">FizzBuzz</span> <span class="dt">Nums</span>))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">putStr</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Result</span>)</span></code></pre></div>
+<p>One thing I have not been able to do is create a working
+<code>Range</code> type-level function that takes two <code>Nat</code>
+and returns all the numbers between them in a list. The following
+compiles.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">IfThenElse</span> cond a b <span class="kw">where</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IfThenElse</span> <span class="dt">'True</span>  a _ <span class="ot">=</span> a</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IfThenElse</span> <span class="dt">'False</span> _ b <span class="ot">=</span> b</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">Append</span> xs y <span class="kw">where</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Append</span> '[] y <span class="ot">=</span> '[y]</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Append</span> (x '<span class="op">:</span> xs) y <span class="ot">=</span> x '<span class="op">:</span> (<span class="dt">Append</span> xs y)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">OrderToBool</span> x <span class="kw">where</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">OrderToBool</span> <span class="dt">'EQ</span> <span class="ot">=</span> <span class="dt">'True</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">OrderToBool</span> _   <span class="ot">=</span> <span class="dt">'False</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">Range</span> (<span class="ot">x ::</span> <span class="dt">Nat</span>) (<span class="ot">y ::</span> <span class="dt">Nat</span>) (<span class="ot">zs ::</span> [<span class="dt">Nat</span>])<span class="ot"> ::</span> [<span class="dt">Nat</span>] <span class="kw">where</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Range</span> x y zs <span class="ot">=</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">IfThenElse</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">OrderToBool</span> (<span class="dt">CmpNat</span> x y))</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>      zs</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">Range</span> (x <span class="op">+</span> <span class="dv">1</span>) y (<span class="dt">Append</span> zs x))</span></code></pre></div>
+<p>I want to compile and run the following, but it seems to get caught
+an infinite loop. The compiler suggest using the GHC flag
+<code>-freduction-depth=0</code>, but it does not seem to help. Even for
+small values it gets stuck.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Result2</span> <span class="ot">=</span> <span class="dt">ConcatSymbols</span> (<span class="dt">Eval</span> (<span class="dt">MapList</span> <span class="dt">FizzBuzz</span> (<span class="dt">Range</span> <span class="dv">1</span> <span class="dv">3</span> '[])))</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">putStr</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Result2</span>)</span></code></pre></div>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-16-type-level-fizzbuzz.html">A Preliminary Attempt at Type-Level FizzBuzz</a></li>
+    
+      <li><a href="../posts/2017-12-12-type-name-to-string.html">Haskell Type Names as Strings</a></li>
+    
+      <li><a href="../posts/2017-06-22-type-level-list-search.html">Type-Level List Search</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

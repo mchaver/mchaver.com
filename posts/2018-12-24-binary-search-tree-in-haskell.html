@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Binary Search Tree in Haskell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Binary Search Tree in Haskell</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2018-12-24</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/tree.html">tree</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#type-declaration" id="toc-type-declaration">Type
+declaration</a></li>
+<li><a href="#traversal-functions" id="toc-traversal-functions">Traversal functions</a></li>
+<li><a href="#balanced-binary-search-tree" id="toc-balanced-binary-search-tree">Balanced Binary Search
+Tree</a></li>
+</ul></nav>
+<h2 id="type-declaration">Type declaration</h2>
+<p>Binary trees are a common data structure in the study of algorithms
+and useful for getting comfortable with new programming languages. To
+limit the scope of this post, we will only define a binary tree for
+<code>Int</code> instead of one that accepts a type parameter because to
+do it right would require using the <code>GADTs</code> extensions to
+enable the <code>Ord</code> and <code>Eq</code> restrictions on a the
+type parameter.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.List</span> (group, sort)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Tree</span> <span class="ot">=</span> <span class="dt">Nil</span> <span class="op">|</span> <span class="dt">Node</span> <span class="dt">Tree</span> <span class="dt">Int</span> <span class="dt">Tree</span> <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</span></code></pre></div>
+<p>This is a simple recursive data structure in Haskell. Each
+<code>Node</code> constructor takes a left-side <code>Tree</code>, a
+node value, and a right-side <code>Tree</code>, <code>Nil</code> ends
+the recursion. A simple single <code>Node</code> tree with a value of
+<code>1</code> is defined as <code>Node Nil 1 Nil</code>. A three node
+tree is <code>Node (Noe Nil 2 Nil) 1 (Node Nil 3 Nil)</code>. This tree
+looks like this:</p>
+<pre><code>  1
+ / \
+2   3</code></pre>
+<h2 id="traversal-functions">Traversal functions</h2>
+<p>What would it look like to map a function over each <code>Int</code>
+value for our binary tree?</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">treeMap ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>treeMap _ <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>treeMap f (<span class="dt">Node</span> l v r) <span class="ot">=</span> (<span class="dt">Node</span> (treeMap f l) (f v) (treeMap f r))</span></code></pre></div>
+<p>If it is <code>Nil</code>, you just return <code>Nil</code> and if it
+is a <code>Node</code>, apply the function <code>f</code> to the value,
+and then call the map function on the left and right children of the
+<code>Node</code>. If you change <code>Int</code> to <code>a</code> then
+you can easily turn this into the <code>Functor</code> definition for
+the binary tree; change the type signature of <code>f</code> to
+<code>(a -&gt; a)</code>.</p>
+<p>The various depth first traversal functions, pre-order (NLR),
+in-order (LNR) and post-order (LRN), are defined similarly to the map
+funcion above.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">depthFirstPreOrder ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>depthFirstPreOrder <span class="dt">Nil</span> <span class="ot">=</span> []</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>depthFirstPreOrder (<span class="dt">Node</span> l v r) <span class="ot">=</span> [v] <span class="op">++</span> (depthFirstPreOrder l) <span class="op">++</span> (depthFirstPreOrder l)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ot">depthFirstInOrder ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>depthFirstInOrder (<span class="dt">Nil</span>) <span class="ot">=</span> []</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>depthFirstInOrder (<span class="dt">Node</span> l v r) <span class="ot">=</span> (depthFirstInOrder l) <span class="op">++</span> [v] <span class="op">++</span> (depthFirstInOrder r)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="ot">depthFirstPostOrder ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>depthFirstPostOrder (<span class="dt">Nil</span>) <span class="ot">=</span> []</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>depthFirstPostOrder (<span class="dt">Node</span> l v r) <span class="ot">=</span> (depthFirstPostOrder l) <span class="op">++</span> (depthFirstPostOrder r) <span class="op">++</span> [v]</span></code></pre></div>
+<p>Breadth first traversal is more complex. The strategy is to build a
+queue and traverse it at the same time. When the <code>Node</code> is
+<code>Nil</code>, it continues to traverse, when the <code>Node</code>
+has a value, it adds the value to results list, and add the left and
+right children of the current node to the end of the queue. When the
+queue is empty, the results are returned, then it converts
+<code>Node</code>s to <code>Just x</code>, <code>Nil</code> to
+<code>Nothing</code>, then uses <code>catMaybes</code> to turn it into
+<code>[Int]</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">breadthFirst ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>breadthFirst tree <span class="ot">=</span> catMaybes <span class="op">$</span> nodeVal <span class="op">&lt;$&gt;</span> breadthFirst' [tree] [tree]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ot">    breadthFirst' ::</span> [<span class="dt">Tree</span>] <span class="ot">-&gt;</span> [<span class="dt">Tree</span>] <span class="ot">-&gt;</span> [<span class="dt">Tree</span>]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    breadthFirst' (<span class="dt">Nil</span> <span class="op">:</span> queue) orderedNodes <span class="ot">=</span> breadthFirst' queue orderedNodes</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    breadthFirst' (<span class="dt">Node</span> l _ r <span class="op">:</span> queue) orderedNodes <span class="ot">=</span> breadthFirst' (queue <span class="op">++</span> [l,r]) (orderedNodes <span class="op">++</span> [l,r])</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    breadthFirst' _ orderedNodes <span class="ot">=</span> orderedNodes</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="ot">    nodeVal ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    nodeVal <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    nodeVal (<span class="dt">Node</span> _ x _) <span class="ot">=</span> <span class="dt">Just</span> x</span></code></pre></div>
+<h2 id="balanced-binary-search-tree">Balanced Binary Search Tree</h2>
+<p>If we want to use the binary tree as a binary search tree, each value
+must be a unique key, and the keys in each node are greater than or
+equal to the keys its left subtree and less than or equal to the keys in
+its right subtree. We start with a simple insert function that traverses
+the tree the same way a search does, but it may imbalance the tree (the
+height difference between one or more branches is greater than one).</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">insert ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>insert <span class="dt">Nil</span> insertVal <span class="ot">=</span> <span class="dt">Node</span> <span class="dt">Nil</span> insertVal <span class="dt">Nil</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>insert (<span class="dt">Node</span> l currentNodeVal r) insertVal</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> insertVal <span class="op">==</span> currentNodeVal <span class="ot">=</span> <span class="dt">Node</span> l currentNodeVal r</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> insertVal  <span class="op">&lt;</span> currentNodeVal <span class="ot">=</span> <span class="dt">Node</span> (insert l insertVal) currentNodeVal r</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="fu">otherwise</span>                   <span class="ot">=</span> <span class="dt">Node</span> l currentNodeVal (insert r insertVal)</span></code></pre></div>
+<p>To make a balanced binary search tree, our strategy is to transform a
+list of values into a list of unique values that is sorted such that
+<code>insert</code> can be folded over it to create a binary search tree
+with values in the correct order to make it balanced. Given a list,
+repeteadly take the middle value, in case of even length the middle plus
+one, move it to the front, and repeat the process on the remaining
+values to the left and right of the middle value.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ot">mkBalancedBinarySearchTreeList ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>mkBalancedBinarySearchTreeList <span class="ot">=</span> mkBalancedBinarySearchTreeList' <span class="op">.</span> sortAndRmdups</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    sortAndRmdups <span class="ot">=</span> <span class="fu">map</span> <span class="fu">head</span> <span class="op">.</span> <span class="fu">group</span> <span class="op">.</span> <span class="fu">sort</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ot">    mkBalancedBinarySearchTreeList' ::</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    mkBalancedBinarySearchTreeList' [] <span class="ot">=</span> []</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    mkBalancedBinarySearchTreeList' xs <span class="ot">=</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> <span class="fu">length</span> xs <span class="op">&gt;</span> <span class="dv">2</span> <span class="kw">of</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="dt">True</span> <span class="ot">-&gt;</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>          <span class="kw">let</span> mid <span class="ot">=</span> (<span class="fu">quot</span> (<span class="fu">length</span> xs) <span class="dv">2</span>)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>              (left, right) <span class="ot">=</span> <span class="fu">splitAt</span> mid xs</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>              (rightL, rightR) <span class="ot">=</span> <span class="fu">splitAt</span> <span class="dv">1</span> right</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>          <span class="kw">in</span> rightL <span class="op">++</span> mkBalancedBinarySearchTreeList' left <span class="op">++</span> mkBalancedBinarySearchTreeList' rightR</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="dt">False</span> <span class="ot">-&gt;</span> xs</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="ot">mkTree ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>mkTree xs <span class="ot">=</span> <span class="fu">foldl</span> insert <span class="dt">Nil</span> xs</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="ot">mkBinaryBalancedSearchTree ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>mkBinaryBalancedSearchTree <span class="ot">=</span> mkTree <span class="op">.</span> mkBalancedBinarySearchTreeList</span></code></pre></div>
+<p>Now to see if a binary search tree contains a value, traverse across
+the tree comparing the value, if it reaches a <code>Node</code> that has
+a matching value, then it is <code>True</code>, if it reaches a
+<code>Nil</code> node, then it does not exist in the tree.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ot">contains ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>contains <span class="dt">Nil</span> _ <span class="ot">=</span> <span class="dt">False</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>contains (<span class="dt">Node</span> t1 v t2) x </span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">==</span> v    <span class="ot">=</span> <span class="dt">True</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x  <span class="op">&lt;</span> v    <span class="ot">=</span> contains t1 x </span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> contains t2 x</span></code></pre></div>
+<p><code>delete</code> is the most complicated function so far. If you
+delete a node that has only one child, you only need to move the child
+up to the position of the node deleted. However, if you delete a node
+that has two children we need to move the minimal value of its right
+subtree up to the deleted node, the leftmost value, and then get that
+subtree without its leftmost value.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ot">leftMost ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>leftMost <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>leftMost (<span class="dt">Node</span> <span class="dt">Nil</span> v _) <span class="ot">=</span> <span class="dt">Just</span> v</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>leftMost (<span class="dt">Node</span> left v _) <span class="ot">=</span> leftMost left</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ot">rightMost ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>rightMost <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>rightMost (<span class="dt">Node</span> _ v <span class="dt">Nil</span>) <span class="ot">=</span> <span class="dt">Just</span> v</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>rightMost (<span class="dt">Node</span> _ v r) <span class="ot">=</span> rightMost r</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="ot">delete ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>delete <span class="dt">Nil</span> _ <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>delete (<span class="dt">Node</span> l v r) x</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">==</span> v   <span class="ot">=</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> (<span class="fu">succ</span> l r) <span class="kw">of</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> succ' <span class="ot">-&gt;</span> <span class="dt">Node</span> (left l r) succ' (right l r)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nil</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">&lt;</span>  v   <span class="ot">=</span> <span class="dt">Node</span> (delete l x) v r</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">&gt;</span>  v   <span class="ot">=</span> <span class="dt">Node</span>  l v (delete r x)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="ot">    succ ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">succ</span> l <span class="dt">Nil</span> <span class="ot">=</span> rightMost l</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">succ</span> _ r   <span class="ot">=</span> leftMost r</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="ot">    left ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>    left l <span class="dt">Nil</span> <span class="ot">=</span> leftSubtree l</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    left l _   <span class="ot">=</span> l</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="ot">    right ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    right l <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>    right _ r   <span class="ot">=</span> rightSubtree r</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- return the right subtree without the leftmost item</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="ot">    rightSubtree ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>    rightSubtree <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>    rightSubtree (<span class="dt">Node</span> <span class="dt">Nil</span> _ r) <span class="ot">=</span> r</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>    rightSubtree (<span class="dt">Node</span> l v r) <span class="ot">=</span> <span class="dt">Node</span> (rightSubtree l) v r</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- return the left subtree without the rightmost item</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a><span class="ot">    leftSubtree ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>    leftSubtree <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>    leftSubtree (<span class="dt">Node</span> l _ <span class="dt">Nil</span>) <span class="ot">=</span> l</span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>    leftSubtree (<span class="dt">Node</span> l v r) <span class="ot">=</span> <span class="dt">Node</span> l v <span class="op">$</span> leftSubtree r</span></code></pre></div>
+<p>If you would like to learn more about binary trees in Haskell. I
+suggest trying to solve the binary tree problems in <a href="https://wiki.haskell.org/H-99:_Ninety-Nine_Haskell_Problems">Ninety-Nine
+Haskell Problems</a>.</p>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-27-tries-in-haskell.html">Tries in Haskell</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

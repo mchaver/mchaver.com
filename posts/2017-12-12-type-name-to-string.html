@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Haskell Type Names as Strings</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Haskell Type Names as Strings</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-12-12</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/type-level.html">type-level</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#runtime-symbol-to-string" id="toc-runtime-symbol-to-string">Runtime : Symbol to String</a></li>
+<li><a href="#runtime-type-proxy-to-string" id="toc-runtime-type-proxy-to-string">Runtime : Type Proxy to
+String</a></li>
+<li><a href="#compile-time-type-to-symbol" id="toc-compile-time-type-to-symbol">Compile Time : Type to Symbol</a>
+<ul>
+<li><a href="#notes" id="toc-notes">Notes:</a></li>
+<li><a href="#references" id="toc-references">References:</a></li>
+</ul></li>
+</ul></nav>
+<p>I will introduce a few different ways to convert a type, from the
+type itself or from a value of a type, to a string. Here are all of the
+language pragmas and imports we will need.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DataKinds #-}</span> <span class="co">-- support Symbol and type level lists</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DeriveGeneric #-}</span> <span class="co">-- derive Generic for Person</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeFamilies #-}</span> <span class="co">-- define type level operations</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span> <span class="co">-- allow `TypeName (Rep a ())` below</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co">-- base</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">GHC.Generics</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">GHC.TypeLits</span> (symbolVal, <span class="dt">Symbol</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Proxy</span> (<span class="dt">Proxy</span> (..))</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Typeable</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  ( typeOf</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  , typeRep</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  , typeRepTyCon</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  , tyConPackage</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  , tyConModule</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  , tyConName</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="co">-- typelits-witnesses</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">GHC.TypeLits.List</span> (symbolsVal)</span></code></pre></div>
+<p>A type declaration we will use later.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Person</span> <span class="ot">=</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Person</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    {<span class="ot"> name ::</span> <span class="dt">String</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    ,<span class="ot"> age ::</span> <span class="dt">Int</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    } <span class="kw">deriving</span> (<span class="dt">Generic</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Human</span> <span class="ot">=</span> <span class="dt">Person</span></span></code></pre></div>
+<p>A type without a constructor.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">X</span></span></code></pre></div>
+<p>GHC allows us to use strings as types. Also known as
+<code>Symbol</code>s. <code>Symbol</code>s are useful when we calculate
+types and we want to pass some string data along, maybe as a file path
+or a route (servant does this), to another type. It is even possible to
+perform operations on the string at the type level. We may want to look
+at what the resulting string is by converting it to a value.</p>
+<p>To work with types directly, and not the values of a particular type,
+we must use <code>Proxy :: Proxy ...</code> to capture the type and pass
+it to a function. This says we are referrencing a type, but not any
+particular value of a type. A constructor is not required.
+<code>symbolVal</code> converts the type level string to a value level
+string. If you want to pass a type to a function and run
+<code>symbolVal</code> on int, you must include
+<code>KnownSymbol a =&gt; ...</code> as a constraint.</p>
+<h2 id="runtime-symbol-to-string">Runtime : Symbol to String</h2>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="st">&quot;symbolVal&quot;</span>) <span class="co">-- (&quot;symbolVal&quot; :: Symbol) to (&quot;symbolVal&quot; :: String)</span></span></code></pre></div>
+<p>Using <code>symbolsVal</code>, we can convert a type level list of
+type level strings to the value level.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> symbolsVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> '[<span class="st">&quot;first&quot;</span>,<span class="st">&quot;second&quot;</span>]) <span class="co">-- [&quot;first&quot;,&quot;second&quot;]</span></span></code></pre></div>
+<h2 id="runtime-type-proxy-to-string">Runtime : Type Proxy to
+String</h2>
+<p>Get the type name of non-symbols. If you want to pass a type to a
+function and run <code>typeRep</code> on in, you must include
+<code>TypeRep a =&gt; ...</code> as a constraint.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> typeRep (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Int</span>) <span class="co">-- &quot;Int&quot;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> typeRep (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Person</span>) <span class="co">-- &quot;Person&quot;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> typeRep (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">X</span>) <span class="co">-- &quot;X&quot;</span></span></code></pre></div>
+<p>Get the type name of a value.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> typeOf <span class="st">&quot;hello&quot;</span> <span class="co">-- &quot;[Char]&quot;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> typeOf <span class="op">$</span> <span class="dt">Person</span> <span class="st">&quot;Susana&quot;</span> <span class="dv">40</span> <span class="co">-- &quot;Person&quot;</span></span></code></pre></div>
+<p><code>typeRep</code> returns <code>TypeRep</code> for a
+<code>Proxy</code> of a type and <code>typeOf</code> returns
+<code>TypeRep</code> for a value of a type. <code>show</code> on a
+<code>TypeRef</code>. <code>typeRepTyCon</code> turns a
+<code>TypeRep</code> into a <code>TyCon</code> and allows us to extract
+more useful information.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> pTyCon <span class="ot">=</span> typeRepTyCon <span class="op">$</span> typeRep (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Person</span>)</span></code></pre></div>
+<p>Package name where Person is defined.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> tyConPackage pTyCon <span class="co">-- &quot;main&quot;</span></span></code></pre></div>
+<p>Module name where Person is defined.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> tyConModule pTyCon <span class="co">-- &quot;Main&quot;</span></span></code></pre></div>
+<p>Type level constructor.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> tyConName pTyCon <span class="co">--  &quot;Person&quot;</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> tyConName <span class="op">$</span> typeRepTyCon <span class="op">$</span> typeRep (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Maybe</span>) <span class="co">-- &quot;Maybe&quot; (it is not &quot;Just&quot; or &quot;Nothing&quot;, those are value level constructors</span></span></code></pre></div>
+<h2 id="compile-time-type-to-symbol">Compile Time : Type to Symbol</h2>
+<p>Finally, there may be a case where you want to convert a type into
+<code>Symbol</code> while you are still compiling. For example, for a
+given type build a servant route base on the <code>Symbol</code> of the
+type. GHC does not provide a way to automatically convert a type to
+<code>Symbol</code> so we need to define our own type family to handle
+this using <code>GHC.Generics</code>. For any type that does not have a
+<code>Generic</code> instance, you must manually define what its
+<code>Symbol</code> is.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">TypeName</span><span class="ot"> a ::</span> <span class="dt">Symbol</span> <span class="kw">where</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">TypeName</span> <span class="dt">Double</span> <span class="ot">=</span> <span class="st">&quot;Double&quot;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">TypeName</span> <span class="dt">Int</span> <span class="ot">=</span> <span class="st">&quot;Int&quot;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">TypeName</span> <span class="dt">String</span> <span class="ot">=</span> <span class="st">&quot;String&quot;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">TypeName</span> (<span class="dt">M1</span> <span class="dt">D</span> (<span class="dt">'MetaData</span> name _ _ _) f ()) <span class="ot">=</span> name</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">TypeName</span> a <span class="ot">=</span> <span class="dt">TypeName</span> (<span class="dt">Rep</span> a ()) <span class="co">-- requires UndecidableInstances</span></span></code></pre></div>
+<p>Now we can convert a type to a <code>Symbol</code> and the
+<code>Symbol</code> to a <code>String</code>.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">TypeName</span> <span class="dt">Int</span>)) <span class="co">-- convert Int to (&quot;Int&quot; :: Symbol) to (&quot;Int&quot; :: String)</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">TypeName</span> <span class="dt">Person</span>)) <span class="co">-- convert Person to (&quot;Person&quot; :: Symbol), using Generic, then to (&quot;Int&quot; :: String)</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">TypeName</span> <span class="dt">String</span>))</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> (<span class="dt">TypeName</span> <span class="dt">Human</span>))</span></code></pre></div>
+<h3 id="notes">Notes:</h3>
+<p>Run with
+<code>stack runghc --package typelits-witnesses -- 2017-12-12-type-name-to-string.lhs</code>.</p>
+<h3 id="references">References:</h3>
+<ul>
+<li><p><a href="https://hackage.haskell.org/package/base-4.10.1.0/docs/Data-Typeable.html">Hackage
+:: base :: Data.Typeable</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.10.1.0/docs/GHC-Generics.html">Hackage
+:: base :: GHC.Generics</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/base-4.10.1.0/docs/GHC-TypeLits.html">Hackage
+:: base :: GHC.TypeLits</a></p></li>
+<li><p><a href="https://hackage.haskell.org/package/typelits-witnesses">Hackage ::
+typelits-witnesses</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-28-improved-type-level-fizzbuzz.html">Improved Type-Level FizzBuzz</a></li>
+    
+      <li><a href="../posts/2018-12-16-type-level-fizzbuzz.html">A Preliminary Attempt at Type-Level FizzBuzz</a></li>
+    
+      <li><a href="../posts/2017-06-22-type-level-list-search.html">Type-Level List Search</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

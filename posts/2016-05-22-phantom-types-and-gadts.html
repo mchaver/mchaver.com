@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Phantom Types and Generalized Algebraic Data Types</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Phantom Types and Generalized Algebraic Data Types</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2016-05-22</div>
+  <div class="post-tags-line">
+    <a class="kind kind-reference" href="../kinds/reference.html">reference</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#phantom-types" id="toc-phantom-types">Phantom
+Types</a></li>
+<li><a href="#data-kinds" id="toc-data-kinds">Data Kinds</a></li>
+<li><a href="#generalized-algebraic-data-types" id="toc-generalized-algebraic-data-types">Generalized Algebraic Data
+Types</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<h2 id="phantom-types">Phantom Types</h2>
+<p>A phantom type is a parameterized type in the left hand side type
+constructor which does not get used in the in the right hand side data
+constructor. The type has no values associated with it.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Length</span> a <span class="ot">=</span> <span class="dt">Length</span> <span class="dt">Double</span></span></code></pre></div>
+<p><code>Length</code> is a phantom type because <code>a</code> does not
+appear on the right hand side. It helps track a type.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Inch</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Centimeter</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ot">inchesToCentimeters ::</span> <span class="dt">Length</span> <span class="dt">Inch</span> <span class="ot">-&gt;</span> <span class="dt">Length</span> <span class="dt">Centimeter</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>inchesToCentimeters (<span class="dt">Length</span> <span class="kw">in</span>) <span class="ot">=</span> <span class="dt">Distance</span> (<span class="fl">2.54</span> <span class="op">*</span> <span class="kw">in</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="ot">centimetersToInches ::</span> <span class="dt">Length</span> <span class="dt">Centimeter</span> <span class="ot">-&gt;</span> <span class="dt">Length</span> <span class="dt">Inch</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>centimetersToInches (<span class="dt">Length</span> cm) <span class="ot">=</span> <span class="dt">Length</span> (cm <span class="op">/</span> <span class="fl">2.54</span>)</span></code></pre></div>
+<h2 id="data-kinds">Data Kinds</h2>
+<p><code>DataKinds</code> promotes a data type up to the kind level so
+its constructors can be used as types. For more details, see <a href="../posts/2017-06-19-kinds-in-haskell.html">Kinds in Haskell</a>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DataKinds #-}</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE KindSignatures #-}</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">LengthUnit</span> <span class="ot">=</span> <span class="dt">Inch</span> <span class="op">|</span> <span class="dt">Centimeter</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">-- restrict the type of a polymorphic variable</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">Length</span> (<span class="ot">a ::</span> <span class="dt">LengthUnit</span>) <span class="ot">=</span> <span class="dt">Distance</span> <span class="dt">Double</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">deriving</span> (<span class="dt">Num</span>, <span class="dt">Show</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="ot">inchesToCentimeters ::</span> <span class="dt">Length</span> <span class="dt">'Inch</span> <span class="ot">-&gt;</span> <span class="dt">Length</span> <span class="dt">'Centimeter</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>inchesToCentimeters (<span class="dt">Length</span> <span class="kw">in</span>) <span class="ot">=</span> <span class="dt">Distance</span> (<span class="fl">2.54</span> <span class="op">*</span> <span class="kw">in</span>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="ot">centimetersToInches ::</span> <span class="dt">Length</span> <span class="dt">'Centimeter</span> <span class="ot">-&gt;</span> <span class="dt">Length</span> <span class="dt">'Inch</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>centimetersToInches (<span class="dt">Length</span> cm) <span class="ot">=</span> <span class="dt">Length</span> (cm <span class="op">/</span> <span class="fl">2.54</span>)</span></code></pre></div>
+<h2 id="generalized-algebraic-data-types">Generalized Algebraic Data
+Types</h2>
+<p>weak approximations of inductive families from dependently typed
+languages</p>
+<p>A <code>data</code> constructor allows us to define a type
+constructor on the left hand side and a data (value) constructor on the
+right hand side. Generalized Algebraic Data Types (GADTs) allow us to
+explicitly write down the type signatures of data constructors. In
+GADTs, the return type of the data constructor does not have to match
+the type constructor.</p>
+<p>We can expand on our example from above:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE GADTs #-}</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Inch</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Centimeter</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Length</span> a <span class="kw">where</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">InchLength</span><span class="ot">       ::</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> <span class="dt">Distance</span> <span class="dt">Inch</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">CentimeterLength</span><span class="ot"> ::</span> <span class="dt">Double</span> <span class="ot">-&gt;</span> <span class="dt">Distance</span> <span class="dt">Centimeter</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="kw">deriving</span> <span class="kw">instance</span> <span class="dt">Show</span> (<span class="dt">Distance</span> a)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="ot">inchesToCentimeters ::</span> <span class="dt">Length</span> <span class="dt">Inch</span> <span class="ot">-&gt;</span> <span class="dt">Length</span> <span class="dt">Centimeter</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>inchesToCentimeters (<span class="dt">Length</span> <span class="kw">in</span>) <span class="ot">=</span> <span class="dt">Distance</span> (<span class="fl">2.54</span> <span class="op">*</span> <span class="kw">in</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="ot">centimetersToInches ::</span> <span class="dt">Length</span> <span class="dt">Centimeter</span> <span class="ot">-&gt;</span> <span class="dt">Length</span> <span class="dt">Inch</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>centimetersToInches (<span class="dt">Length</span> cm) <span class="ot">=</span> <span class="dt">Length</span> (cm <span class="op">/</span> <span class="fl">2.54</span>)</span></code></pre></div>
+<p>Here is another motivating example from the GHC Users Guide:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Term</span> a <span class="kw">where</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Lit</span><span class="ot">    ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Term</span> <span class="dt">Int</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Succ</span><span class="ot">   ::</span> <span class="dt">Term</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Term</span> <span class="dt">Int</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IsZero</span><span class="ot"> ::</span> <span class="dt">Term</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Term</span> <span class="dt">Bool</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">If</span><span class="ot">     ::</span> <span class="dt">Term</span> <span class="dt">Bool</span> <span class="ot">-&gt;</span> <span class="dt">Term</span> a <span class="ot">-&gt;</span> <span class="dt">Term</span> a <span class="ot">-&gt;</span> <span class="dt">Term</span> a</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Pair</span><span class="ot">   ::</span> <span class="dt">Term</span> a <span class="ot">-&gt;</span> <span class="dt">Term</span> b <span class="ot">-&gt;</span> <span class="dt">Term</span> (a,b)  </span></code></pre></div>
+<p>We can then pattern match on all of the constructors of
+<code>Term</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">eval ::</span> <span class="dt">Term</span> a <span class="ot">-&gt;</span> a</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>eval (<span class="dt">Lit</span> i)      <span class="ot">=</span> i</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>eval (<span class="dt">Succ</span> t)     <span class="ot">=</span> <span class="dv">1</span> <span class="op">+</span> eval t</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>eval (<span class="dt">IsZero</span> t)   <span class="ot">=</span> eval t <span class="op">==</span> <span class="dv">0</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>eval (<span class="dt">If</span> b e1 e2) <span class="ot">=</span> <span class="kw">if</span> eval b <span class="kw">then</span> eval e1 <span class="kw">else</span> eval e2</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>eval (<span class="dt">Pair</span> e1 e2) <span class="ot">=</span> (eval e1, eval e2)</span></code></pre></div>
+<p>GADTs allow type refinement. Type <code>a</code> is refined to
+<code>Int</code> in the case of the <code>Lit</code> constructor because
+of the signature in the GADT definition
+<code>Lit :: Int -&gt; Term Int</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ot">eval ::</span> <span class="dt">Term</span> a <span class="ot">-&gt;</span> a</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>eval (<span class="dt">Lit</span> i)      <span class="ot">=</span> i</span></code></pre></div>
+<h2 id="references">References</h2>
+<ul>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#ghc-flag--XGADTs">GHC
+Users Guide :: GADTs</a></p></li>
+<li><p><a href="https://stackoverflow.com/a/28250226/412417">StackOverflow ::
+phadej :: Motivation behind Phantom Types?</a></p></li>
+<li><p><a href="https://en.wikibooks.org/wiki/Haskell/GADT">Wikibooks ::
+Haskell/GADT</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

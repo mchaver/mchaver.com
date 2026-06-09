@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Change Making Problem in Haskell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Change Making Problem in Haskell</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2018-12-31</div>
+  <div class="post-tags-line">
+    <a class="kind kind-note" href="../kinds/note.html">note</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/dynamic%20programming.html">dynamic programming</a>
+  </div>
+</div>
+
+<p>The <a href="https://en.wikipedia.org/wiki/Change-making_problem">Change-making
+problem</a> asks us to find the minimum number of coins that add up to a
+target value. For example, if we have an infinite amount of coins of
+values <code>1, 2, 5</code>, the smallest set that adds up to
+<code>11</code> is <code>1, 5, 5</code>, whereas 11 <code>1</code> value
+coins would be the largest. Here is an outline of the recursive
+algorithm in imperative form (I will to convert this to real Python at
+some point):</p>
+<pre><code>coins = unique list of numbers &gt;= 0
+coin_index = length of coins
+target = the value the sum of selected coins must sum, positive value
+
+count(solution, coins, coin_index, target):
+    # solution has been found
+    if (target == 0):
+        return [solution];
+
+    # solution does not exist
+    if (target &lt; 0):
+        return [];
+
+    # no more coins to iterate over, but target has not been reached
+    # this solution does not exist
+    if (coin_index &lt;= 0 &amp;&amp; target &gt;= 1):
+        return [];
+
+    # the left branch tries a different coin
+    # the right branch uses the same coin, adds the coin to the solution, and
+    # deducts the coins value from the target
+    return
+      append(
+        count( solutions, coins, coin_index - 1, target)
+             , count(append(solutions, coins[coin_index-1]), coins, coin_index, target - coins[coin_index - 1])
+             )
+        );
+
+return get_small_list(count([], coins, coin_index, target));</code></pre>
+<p>The translation to Haskell is pretty straightforward. I then use a
+fold to get the smallest length solution. The results from
+<code>makeChangesSolutions</code> can also be used to answer how many
+solutions are there. You can also filter the results to answer other
+things like which solutions have a certain amount coin, etc.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ot">makeChangeSolutions ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [[<span class="dt">Int</span>]]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>makeChangeSolutions coins target <span class="ot">=</span> makeChange' [] coins (<span class="fu">length</span> coins) target</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ot">    makeChange' ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [[<span class="dt">Int</span>]]</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    makeChange' coinSet coins coinIndex target</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> target <span class="op">&lt;</span>  <span class="dv">0</span> <span class="ot">=</span> []</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> target <span class="op">==</span> <span class="dv">0</span> <span class="ot">=</span> [coinSet]</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> coinIndex <span class="op">==</span> <span class="dv">0</span> <span class="op">&amp;&amp;</span> target <span class="op">&gt;=</span> <span class="dv">1</span> <span class="ot">=</span> []</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> (makeChange' coinSet coins (coinIndex <span class="op">-</span> <span class="dv">1</span>) target) <span class="op">++</span> (makeChange' (coinSet  <span class="op">++</span> [coins <span class="op">!!</span> (coinIndex <span class="op">-</span> <span class="dv">1</span>)]) coins coinIndex (target <span class="op">-</span> (coins <span class="op">!!</span> (coinIndex <span class="op">-</span> <span class="dv">1</span>))))</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="ot">minimumChangeSolution ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>minimumChangeSolution coins target <span class="ot">=</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">if</span> <span class="fu">length</span> solutions <span class="op">==</span> <span class="dv">0</span> <span class="kw">then</span> [] <span class="kw">else</span> <span class="fu">foldl</span> (\a b <span class="ot">-&gt;</span> <span class="kw">if</span> <span class="fu">length</span> a <span class="op">&lt;</span> <span class="fu">length</span> b <span class="kw">then</span> a <span class="kw">else</span> b) (<span class="fu">head</span> solutions) (<span class="fu">tail</span> solutions)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    solutions <span class="ot">=</span> makeChangeSolutions coins target</span></code></pre></div>
+<p>Both these implementations are brute force though and they repeat
+calculations that we could save and lookup instead of recalculating
+them.</p>
+<p>The dynamic programming implementation was quite challenging because
+I want to return not just the amount of solutions are the number of
+coins in the solution, but the actual soltion. Returning the former two
+is not too hard with some table lookups, but the latter is more
+challenging. I ended up referring to a Python implementation in the <a href="https://interactivepython.org/courselib/static/pythonds/Recursion/DynamicProgramming.html">Problem
+Solving with Algorithms and Data Structures</a>. That looks like
+this:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dpMakeChange(coinValueList,change,minCoins,coinsUsed):</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>   <span class="cf">for</span> cents <span class="kw">in</span> <span class="bu">range</span>(change<span class="op">+</span><span class="dv">1</span>):</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>      coinCount <span class="op">=</span> cents</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>      newCoin <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> j <span class="kw">in</span> [c <span class="cf">for</span> c <span class="kw">in</span> coinValueList <span class="cf">if</span> c <span class="op">&lt;=</span> cents]:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> minCoins[cents<span class="op">-</span>j] <span class="op">+</span> <span class="dv">1</span> <span class="op">&lt;</span> coinCount:</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>               coinCount <span class="op">=</span> minCoins[cents<span class="op">-</span>j]<span class="op">+</span><span class="dv">1</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>               newCoin <span class="op">=</span> j</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      minCoins[cents] <span class="op">=</span> coinCount</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>      coinsUsed[cents] <span class="op">=</span> newCoin</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>   <span class="cf">return</span> minCoins[change]</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> printCoins(coinsUsed,change):</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>   coin <span class="op">=</span> change</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>   <span class="cf">while</span> coin <span class="op">&gt;</span> <span class="dv">0</span>:</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>      thisCoin <span class="op">=</span> coinsUsed[coin]</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>      <span class="bu">print</span>(thisCoin)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>      coin <span class="op">=</span> coin <span class="op">-</span> thisCoin</span></code></pre></div>
+<p>My Haskell implementation is quite complex. I ended up using two
+<code>foldl</code> which probably is not good for performance. I owe you
+an explanation of the code.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">initMap ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Map.Map</span> <span class="dt">Int</span> <span class="dt">Int</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>initMap x <span class="ot">=</span> Map.fromList <span class="op">$</span> <span class="fu">zip</span> [<span class="dv">0</span><span class="op">..</span>x] (<span class="fu">replicate</span> (x<span class="op">+</span><span class="dv">1</span>) <span class="dv">0</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ot">dpMinimumChangeSolution ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>dpMinimumChangeSolution coinValues change <span class="ot">=</span> filterUsedCoins coinsUsedMap change []</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    (_, coinsUsedMap) <span class="ot">=</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">foldl</span> (\(minCoins, coinsUsed) cents <span class="ot">-&gt;</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> (coinCount', newCoin') <span class="ot">=</span> <span class="fu">foldl</span> (\(coinCount, newCoin) j <span class="ot">-&gt;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>             <span class="kw">let</span> (coinCount', newCoin') <span class="ot">=</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                  <span class="kw">case</span> Map.lookup (cents <span class="op">-</span> j) minCoins <span class="kw">of</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>                    <span class="dt">Just</span> res <span class="ot">-&gt;</span> </span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                      <span class="kw">if</span> (res <span class="op">+</span> <span class="dv">1</span> <span class="op">&lt;</span> coinCount)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                        <span class="kw">then</span> (res <span class="op">+</span> <span class="dv">1</span>, j)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>                        <span class="kw">else</span> (coinCount, newCoin)</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>                    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> (coinCount, newCoin)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>             <span class="kw">in</span> (coinCount', newCoin')</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>             ) (cents, <span class="dv">1</span>) (<span class="fu">filter</span> (\c <span class="ot">-&gt;</span> c <span class="op">&lt;=</span> cents) coinValues)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        <span class="kw">in</span> (Map.update (\_ <span class="ot">-&gt;</span> <span class="dt">Just</span> coinCount') cents minCoins, Map.update (\_ <span class="ot">-&gt;</span> <span class="dt">Just</span> newCoin') cents coinsUsed)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>      ) (initMap change, initMap change) [<span class="dv">0</span><span class="op">..</span>change]</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="ot">    filterUsedCoins ::</span> <span class="dt">Map.Map</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    filterUsedCoins coinsUsed change res</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> change <span class="op">&gt;</span> <span class="dv">0</span> <span class="ot">=</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>          <span class="kw">case</span> Map.lookup change coinsUsed <span class="kw">of</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>            <span class="dt">Just</span> coin <span class="ot">-&gt;</span> filterUsedCoins coinsUsed (change <span class="op">-</span> coin) (res <span class="op">++</span> [coin])</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>            <span class="dt">Nothing</span>   <span class="ot">-&gt;</span> res <span class="co">-- this shouldn't happen</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span>  <span class="ot">=</span> res</span></code></pre></div>
+<p>Finally the tests.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>test  <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>test2 <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">5</span>,<span class="dv">10</span>,<span class="dv">21</span>,<span class="dv">25</span>]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> minimumChangeSolution   test <span class="dv">4</span> <span class="co">-- [1,3]</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> dpMinimumChangeSolution test <span class="dv">4</span> <span class="co">-- [1,3]</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> minimumChangeSolution   test2 <span class="dv">63</span> <span class="co">-- [21,21,21]</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> dpMinimumChangeSolution test2 <span class="dv">63</span> <span class="co">-- [21,21,21]</span></span></code></pre></div>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2018-12-29-maximum-subarrary-in-haskell.html">Maximum Subarray in Haskell</a></li>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

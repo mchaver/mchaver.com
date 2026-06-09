@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - An Introduction to Type Families</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">blog</a>
+        <span> | </span>
+        <a href="../topics.html">topics</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+        <span> | </span>
+        <a href="../search.html">search</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>An Introduction to Type Families</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2017-06-21</div>
+  <div class="post-tags-line">
+    <a class="kind kind-reference" href="../kinds/reference.html">reference</a>
+    <a class="tag" href="../tags/haskell.html">haskell</a>
+  </div>
+</div>
+
+<nav class="toc"><div class="toc-title">Contents</div><ul>
+<li><a href="#review" id="toc-review">Review</a></li>
+<li><a href="#type-families" id="toc-type-families">Type
+Families</a></li>
+<li><a href="#data-family" id="toc-data-family">Data Family</a></li>
+<li><a href="#type-synonym-families" id="toc-type-synonym-families">Type
+Synonym Families</a></li>
+<li><a href="#what-to-remember-about-type-families" id="toc-what-to-remember-about-type-families">What to Remember About
+Type Families</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul></nav>
+<h2 id="review">Review</h2>
+<p>Before discussing type families, we need to review type synonyms,
+type classes, multi-parameter type classes and functional dependencies.
+It also helps to read <a href="../posts/2017-06-19-kinds-in-haskell.html">Kinds in Haskell</a>,
+since type families operate at the same level.</p>
+<h4 id="type-synonyms">Type synonyms</h4>
+<p>Type synonyms are a form of syntactic sugar. They allow us to give a
+new name to an existing type. You can treat them as the same as the
+original type. They are useful annotations for the programmer, but they
+can be ignored by the compiler.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Name</span> <span class="ot">=</span> <span class="dt">String</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">let</span> x <span class="ot">=</span> <span class="st">&quot;Sanjay&quot;</span><span class="ot"> ::</span> <span class="dt">Name</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> <span class="kw">let</span> y <span class="ot">=</span> <span class="st">&quot;Sanjay&quot;</span><span class="ot"> ::</span> <span class="dt">String</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>λ<span class="op">&gt;</span> x <span class="op">==</span> y</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="dt">True</span></span></code></pre></div>
+<h4 id="type-classes">Type classes</h4>
+<p>Type classes allow us to put constraints on polymorphic type
+parameters. For example, the <code>print</code> function from
+<code>base</code> puts a constraint on the its polymorphic type
+variable.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Show</span> a <span class="kw">where</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ot">  show ::</span> a <span class="ot">-&gt;</span> <span class="dt">String</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span><span class="ot"> ::</span> <span class="dt">Show</span> a <span class="ot">=&gt;</span> a <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</span></code></pre></div>
+<p>We can read it is as <code>print</code> accepts any type
+<code>a</code> that has an instance of the <code>Show</code> type class.
+The compiler will reject any <code>a</code> that does not have an
+instance of <code>Show</code>. When we make an instance of a type class
+for a type, we overload the operations associated with that particular
+type class. In this case <code>Show</code> is expecting a type of kind
+<code>*</code>.</p>
+<p>Type classes can also support higher-kinded types such as
+<code>* -&gt; *</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Functor</span> f <span class="kw">where</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="ot">  fmap ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> f a <span class="ot">-&gt;</span> f b</span></code></pre></div>
+<p>While <code>* -&gt; *</code> is not explicitly stated, the
+<code>f</code> occurs on the left hand side of a type variable, the
+compiler can infer that <code>f</code> is a type of kind
+<code>* -&gt; *</code>.</p>
+<p>In Haskell, type class instances are global, import any file with a
+type class instance and that instance is automatically propagated to all
+other files importing it. Then, for any function requiring a type class,
+the instance are implicitly used. One type cannot have multiple
+instances of a single type class.</p>
+<h4 id="multi-parameter-type-classes">Multi-parameter type classes</h4>
+<p>By default, Haskell 2010 does not support multi-parameter type
+classes. We need to add the language pragma
+<code>{-# LANGUAGE MultiParamTypeClasses #-}</code> to enable them.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">X</span> a b <span class="kw">where</span></span></code></pre></div>
+<p>We will often need <code>{-# LANGUAGE FlexibleInstances #-}</code> to
+handle Multi-parameter type classes when we want to add more
+restrictions to instances.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Show</span> [<span class="dt">Int</span>] <span class="kw">where</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">X</span> (<span class="dt">Maybe</span> <span class="dt">Int</span>) <span class="dt">String</span> <span class="kw">where</span></span></code></pre></div>
+<p>Type classes are a set of types. Multi-parameter type classes is a
+relationship between types.</p>
+<h4 id="functional-dependencies">Functional dependencies</h4>
+<p>Because multi-parameter type classes may introduce ambiguity. We need
+<code>{-# LANGUAGE FunctionalDependencies #-}</code> to constrain the
+parameters of type classes.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Combine</span> a b c <span class="op">|</span> a b <span class="ot">-&gt;</span> c <span class="kw">where</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ot">  combine ::</span> a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c</span></code></pre></div>
+<p>The right hand side of the class declaration
+<code>| a b -&gt; c</code> states that <code>c</code>’s type is
+determined by <code>a</code> and <code>b</code>. For any given
+<code>a</code> and <code>b</code> you can only have one <code>c</code>.
+<code>c</code> should not be a free variable, it is determined by the
+other two variables.</p>
+<p>Here is general container type class using functional
+dependencies.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Container</span> e c <span class="op">|</span> c <span class="ot">-&gt;</span> e <span class="kw">where</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ot">  empty  ::</span> c</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ot">  insert ::</span> e <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> c</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="ot">  member ::</span> e <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ot">  toList ::</span> c <span class="ot">-&gt;</span> [e]</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Eq</span> e <span class="ot">=&gt;</span> <span class="dt">Container</span> e [e] <span class="kw">where</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  empty           <span class="ot">=</span> []</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  insert e l      <span class="ot">=</span> (e<span class="op">:</span>l)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  member e []     <span class="ot">=</span> <span class="dt">False</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  member e (x<span class="op">:</span>xs) </span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> e <span class="op">==</span> x      <span class="ot">=</span> <span class="dt">True</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> <span class="fu">otherwise</span>   <span class="ot">=</span> member e xs</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  toList l        <span class="ot">=</span> l</span></code></pre></div>
+<h2 id="type-families">Type Families</h2>
+<p>With type classes, we can associate the set of functions from a type
+class with a type. Type families allow us to associate types with a
+type. They define partial functions from types to types by pattern
+matching on input types. Type families are type-indexed data types and
+name functions on types. The data types and functions are retrieved by
+the types provided.</p>
+<p>Type families come in three variations:</p>
+<ul>
+<li>data families</li>
+<li>open type synonym families</li>
+<li>closed type synonym families</li>
+</ul>
+<h2 id="data-family">Data Family</h2>
+<p>Data family type families create a new data type. They restrict the
+codomain and require each instance to define a new type constructor for
+the function’s result.</p>
+<p>They can be declared at the top level, with or without kind
+declaration.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="kw">family</span> <span class="dt">Array</span> a</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="kw">family</span> <span class="dt">Array</span><span class="ot"> ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span></code></pre></div>
+<p>Or they can be declared within a class. These are known as associated
+types.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">GeneralMapKey</span> k <span class="kw">where</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">data</span> <span class="dt">GeneralMap</span><span class="ot"> k ::</span> <span class="op">*</span> <span class="ot">-&gt;</span> <span class="op">*</span></span></code></pre></div>
+<p>An array example with an associated type.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">ArrayElem</span> e <span class="kw">where</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">data</span> <span class="dt">Array</span> e</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="ot">  index ::</span> <span class="dt">Array</span> e <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> e</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">ArrayElem</span> <span class="dt">Bool</span> <span class="kw">where</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">data</span> <span class="dt">Array</span> <span class="dt">Bool</span> <span class="ot">=</span> <span class="dt">BoolArray</span> <span class="dt">BitVector</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">index</span> (<span class="dt">BoolArray</span> ar) i <span class="ot">=</span> indexBitVector ar i</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">ArrayElem</span> <span class="dt">Int</span> <span class="kw">where</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">data</span> <span class="dt">Array</span> <span class="dt">Int</span> <span class="ot">=</span> <span class="dt">IntArray</span> <span class="dt">UIntArr</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">index</span> (<span class="dt">IntArray</span> ar) i <span class="ot">=</span> indexUIntArr ar i</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> (<span class="dt">ArrayElem</span> a, <span class="dt">ArrayElem</span> b) <span class="ot">=&gt;</span> <span class="dt">ArrayElem</span> (a, b) <span class="kw">where</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">data</span> <span class="dt">Array</span> (a, b) <span class="ot">=</span> <span class="dt">PairArray</span> (<span class="dt">Array</span> a) (<span class="dt">Array</span> b)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="fu">index</span> (<span class="dt">PairArray</span> ar br) <span class="ot">=</span> (<span class="fu">index</span> ar i, <span class="fu">index</span> br i)</span></code></pre></div>
+<h2 id="type-synonym-families">Type Synonym Families</h2>
+<p>Type synonym families permit types in the codomain of the type
+function to be any type with the appropriate kind.</p>
+<p>Open type families are declared at the top level.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">F</span><span class="ot"> a ::</span> <span class="op">*</span></span></code></pre></div>
+<p>We can close a type synonym family by adding a <code>where</code>
+clause. Also, it guarantees that the associated functions will be tried
+in order of declaration.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">F</span> a <span class="kw">where</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">F</span> <span class="dt">Int</span>  <span class="ot">=</span> <span class="dt">Double</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">F</span> <span class="dt">Bool</span> <span class="ot">=</span> <span class="dt">Char</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">F</span> a    <span class="ot">=</span> <span class="dt">String</span></span></code></pre></div>
+<h4 id="examples">Examples</h4>
+<p>A general concat type family can be used to concat different types.
+You must decide what the resulting type is for any pair of types.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE FlexibleInstances     #-}</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE MultiParamTypeClasses #-}</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE OverloadedStrings     #-}</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeFamilies          #-}</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeSynonymInstances  #-}</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.ByteString.Char8</span> <span class="kw">as</span> <span class="dt">BS</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.ByteString</span> (<span class="dt">ByteString</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.Monoid</span> ((&lt;&gt;))</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Text</span> <span class="kw">as</span> <span class="dt">T</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span>           <span class="dt">Data.Text</span> (<span class="dt">Text</span>)</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Concat</span> a b <span class="kw">where</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">type</span> <span class="dt">ConcatTy</span> a b <span class="co">-- the declared type will replace this type synonym</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="ot">  cat ::</span> a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> <span class="dt">ConcatTy</span> a b</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Concat</span> <span class="dt">Text</span> <span class="dt">String</span> <span class="kw">where</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  <span class="kw">type</span> <span class="dt">ConcatTy</span> <span class="dt">Text</span> <span class="dt">String</span> <span class="ot">=</span> <span class="dt">Text</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>  cat x y <span class="ot">=</span> x <span class="op">&lt;&gt;</span> (T.pack y)</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Concat</span> <span class="dt">String</span> <span class="dt">Text</span> <span class="kw">where</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>  <span class="kw">type</span> <span class="dt">ConcatTy</span> <span class="dt">String</span> <span class="dt">Text</span> <span class="ot">=</span> <span class="dt">Text</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>  cat x y <span class="ot">=</span> (T.pack x) <span class="op">&lt;&gt;</span> y</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Concat</span> <span class="dt">String</span> <span class="dt">ByteString</span> <span class="kw">where</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>  <span class="kw">type</span> <span class="dt">ConcatTy</span> <span class="dt">String</span> <span class="dt">ByteString</span> <span class="ot">=</span> <span class="dt">String</span></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>  cat x y <span class="ot">=</span> x <span class="op">++</span> (BS.unpack y)</span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">print</span> <span class="op">$</span> cat (<span class="st">&quot;Hello&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>) (<span class="st">&quot; World!&quot;</span><span class="ot"> ::</span> <span class="dt">String</span>)</span></code></pre></div>
+<p>A general container type family.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Container</span> c <span class="kw">where</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">type</span> <span class="dt">Elem</span> c</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="ot">  empty  ::</span> c</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="ot">  insert ::</span> <span class="dt">Elem</span> c <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> c</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ot">  member ::</span> <span class="dt">Elem</span> c <span class="ot">-&gt;</span> c <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="ot">  toList ::</span> c <span class="ot">-&gt;</span> [<span class="dt">Elem</span> c]</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Eq</span> e <span class="ot">=&gt;</span> <span class="dt">Container</span> [e] <span class="kw">where</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">type</span> <span class="dt">Elem</span> [e]   <span class="ot">=</span> e</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  empty           <span class="ot">=</span> []</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  insert e l      <span class="ot">=</span> (e<span class="op">:</span>l)</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  member e []     <span class="ot">=</span> <span class="dt">False</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>  member e (x<span class="op">:</span>xs) </span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> e <span class="op">==</span> x      <span class="ot">=</span> <span class="dt">True</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> <span class="fu">otherwise</span>   <span class="ot">=</span> member e xs</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>  toList l        <span class="ot">=</span> l</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Eq</span> e <span class="ot">=&gt;</span> <span class="dt">Container</span> (<span class="dt">Maybe</span> e) <span class="kw">where</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>  <span class="kw">type</span> <span class="dt">Elem</span> (<span class="dt">Maybe</span> e) <span class="ot">=</span> e <span class="co">-- type synonym</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>  empty            <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>  insert e l       <span class="ot">=</span> <span class="dt">Just</span> e <span class="co">-- destructive, replaces previous element</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>  member e <span class="dt">Nothing</span> <span class="ot">=</span> <span class="dt">False</span></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>  member e (<span class="dt">Just</span> x) <span class="ot">=</span> e <span class="op">==</span> x</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>  toList <span class="dt">Nothing</span>   <span class="ot">=</span> []</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>  toList (<span class="dt">Just</span> x)  <span class="ot">=</span> [x]</span></code></pre></div>
+<h2 id="what-to-remember-about-type-families">What to Remember About
+Type Families</h2>
+<ul>
+<li><p>Data families create new types, every instance of a data family
+declares new constructors.</p></li>
+<li><p>Type families can only refer to other existing types.</p></li>
+</ul>
+<p>Type families are the workhorse behind type-level programming. For
+worked examples, see <a href="../posts/2017-06-22-type-level-list-search.html">Type-Level List
+Search</a> and <a href="../posts/2018-12-16-type-level-fizzbuzz.html">Type-Level
+FizzBuzz</a>.</p>
+<h2 id="references">References</h2>
+<ul>
+<li><p><a href="https://wiki.haskell.org/GHC/Type_families">Haskell Wiki
+:: GHC/Type families</a></p></li>
+<li><p><a href="https://downloads.haskell.org/~ghc/8.0.2/docs/html/users_guide/glasgow_exts.html#type-families">GHC
+Users Guide :: 10.9. Type families</a></p></li>
+<li><p><a href="https://stackoverflow.com/a/20908500/412417">StackOverflow</a></p></li>
+<li><p><a href="https://en.wikipedia.org/wiki/Type_family">Wikipedia ::
+Type family</a></p></li>
+</ul>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to search.
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/search.html';
+        }
+      });
+    </script>
+  </body>
+</html>

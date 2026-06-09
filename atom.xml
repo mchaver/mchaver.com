@@ -1,0 +1,939 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>mchaver.com</title>
+    <link href="https://mchaver.com/atom.xml" rel="self" />
+    <link href="https://mchaver.com" />
+    <id>https://mchaver.com/atom.xml</id>
+    <author>
+        <name>James M.C. Haver II</name>
+        
+        <email>mchaver@gmail.com</email>
+        
+    </author>
+    <updated>2026-06-07T00:00:00Z</updated>
+    <entry>
+    <title>Moving from Haskell Servant to Rust Axum</title>
+    <link href="https://mchaver.com/posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html" />
+    <id>https://mchaver.com/posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html</id>
+    <published>2026-06-07T00:00:00Z</published>
+    <updated>2026-06-07T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>I have a couple of servers running Haskell <a href="https://docs.servant.dev/en/latest/tutorial/index.html">servant</a>. If you don’t know servant, it’s a package for defining APIs as Haskell types. It’s a nice way to define server and client APIs. If you like Haskell, definitely check it out.</p>
+<p>Anyway, the servers are running in Docker containers on a VPS. Even though they are relatively small and handle simple things like basic auth, user accounts, simple business logic, etc., code updates can cause Docker rebuilbs to be painfully slow, even with caching. A fresh build takes up to 40 minutes. A cached build can be 10 to 30 minutes depending on how deep the change is.</p>
+<p>I came across this <a href="https://news.ycombinator.com/item?id=47958503">comment on Hacker News</a> and started thinking about testing other ecosystems. I have used a bit of Rust in the past so I decided to migrate one server from Haskell servant to Rust axum. The main concern was keeping code high quality so I used Rust’s linter, Clippy, and ported over all the unit tests I had in Haskell to Rust. I also used Docker to build the project. Currently a fresh build is about 15 minutes as opposed to Haskell’s 40 minutes. I did have to give up some type safety, but for small servers with relatively simple business logic, it is not a huge loss.</p>
+<p>I will launch the service this week. I’ll report back in a month or so on my experiences in production.</p>]]></summary>
+</entry>
+<entry>
+    <title>Baby's First Effects with Haskell Effectful</title>
+    <link href="https://mchaver.com/posts/2026-06-03-babys-first-effects-with-haskell-effectful.html" />
+    <id>https://mchaver.com/posts/2026-06-03-babys-first-effects-with-haskell-effectful.html</id>
+    <published>2026-06-03T00:00:00Z</published>
+    <updated>2026-06-03T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In this tutorial, we are going to build a simple file read and write function and a log function to explore how to use effects in Haskell.</p>
+<p>For much of my work with Haskell, I’ve used the <a href="https://academy.fpblock.com/blog/2017/06/readert-design-pattern/">ReaderT Design Pattern</a> to pass around configs, mutable references, database connections, etc. to different parts of the executable. It’s a nice, simple pattern and good for smaller executables. It is still something I will use, but for larger projects, it is nice to have stricter control over what can happen in certain functions and encode that in the types.</p>
+<p>That’s where the effects come in. The idea is to encode the effects in a function’s type signature and allow it to perform actions like reading or writing a file. <a href="https://hackage-content.haskell.org/package/effectful">effectful</a> is a nice Haskell library for effects. The author has written a <a href="https://hackage-content.haskell.org/package/effectful-core-2.6.1.0/docs/Effectful-Dispatch-Dynamic.html">document</a> for dynamic effects. However, it is not a complete tutorial. I want to fill in the gaps with this tutorial to give the reader a compilable program.</p>
+<p>Let’s start by setting up the GHC language extensions and imports we are going to use.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DataKinds #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE FlexibleContexts #-}</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE GADTs #-}</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeApplications #-}</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeFamilies #-}</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeOperators #-}</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Effectful</span> (<span class="dt">Dispatch</span>(<span class="dt">Dynamic</span>), <span class="dt">DispatchOf</span>, <span class="dt">Eff</span>, <span class="dt">Effect</span>, <span class="dt">IOE</span>, (:&gt;), liftIO, runEff, runPureEff)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Effectful.Error.Static</span> (<span class="dt">Error</span>, prettyCallStack, runError, throwError)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Effectful.Exception</span> (catchIO)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Effectful.Dispatch.Dynamic</span> (interpret, reinterpret, send)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Effectful.State.Static.Local</span> (get, modify, runState)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Map.Strict</span> (<span class="dt">Map</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map.Strict</span> <span class="kw">as</span> <span class="dt">Map</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">System.IO</span> <span class="kw">as</span> <span class="dt">IO</span></span></code></pre></div>
+<p>Then we define a system of effects as data constructors. The type family instance <code>type instance DispatchOf FileSystem = Dynamic</code> marks <code>FileSystem</code> as dynamically dispatched, which means we can give it more than one interpretation at run time. We will give it two interpretations in this tutorial.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">FileSystem</span><span class="ot"> ::</span> <span class="dt">Effect</span> <span class="kw">where</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ReadFile</span><span class="ot">  ::</span> <span class="dt">FilePath</span> <span class="ot">-&gt;</span> <span class="dt">FileSystem</span> m <span class="dt">String</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">WriteFile</span><span class="ot"> ::</span> <span class="dt">FilePath</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">FileSystem</span> m ()</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">DispatchOf</span> <span class="dt">FileSystem</span> <span class="ot">=</span> <span class="dt">Dynamic</span></span></code></pre></div>
+<p>With the use of <code>send</code>, we can turn the data constructors into functions. <code>send</code> hands an operation off to whichever interpreter is installed for <code>FileSystem</code> when the program runs. <code>FileSystem</code> is an effect required by the function. <code>:&gt;</code> means <code>FileSystem</code> is one of the effect types in the stack of effects <code>es</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">readFile&#39; ::</span> (<span class="dt">FileSystem</span> <span class="op">:&gt;</span> es) <span class="ot">=&gt;</span> <span class="dt">FilePath</span> <span class="ot">-&gt;</span> <span class="dt">Eff</span> es <span class="dt">String</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>readFile&#39; path <span class="ot">=</span> send (<span class="dt">ReadFile</span> path)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="ot">writeFile&#39; ::</span> (<span class="dt">FileSystem</span> <span class="op">:&gt;</span> es) <span class="ot">=&gt;</span> <span class="dt">FilePath</span> <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Eff</span> es ()</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>writeFile&#39; path contents <span class="ot">=</span> send (<span class="dt">WriteFile</span> path contents)</span></code></pre></div>
+<p>We define an interpreter for the system of effects. This gives an IO operation to each effect in the system. Start by looking at the type signature. <code>IOE</code> allows an arbitrary MonadIO computation. <code>Error</code> is an error effect we use with our custom error <code>FsError</code>. It allows this function to fail with <code>FsError</code>. <code>interpret</code> implements the effect and lets us implement each path in <code>FileSystem</code>. Each path goes through <code>adapt</code>, which runs the IO action and converts any <code>IOException</code> into our typed <code>FsError</code> with <code>throwError</code>, so failures are returned through the <code>Error</code> effect instead of as untyped runtime exceptions.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">FsError</span> <span class="ot">=</span> <span class="dt">FsError</span> <span class="dt">String</span> <span class="kw">deriving</span> <span class="dt">Show</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>runFileSystemIO</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ot">  ::</span> (<span class="dt">IOE</span> <span class="op">:&gt;</span> es, <span class="dt">Error</span> <span class="dt">FsError</span> <span class="op">:&gt;</span> es)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=&gt;</span> <span class="dt">Eff</span> (<span class="dt">FileSystem</span> <span class="op">:</span> es) a</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="ot">-&gt;</span> <span class="dt">Eff</span> es a</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>runFileSystemIO <span class="ot">=</span> interpret <span class="op">$</span> \_ eff <span class="ot">-&gt;</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> eff <span class="kw">of</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">ReadFile</span> path           <span class="ot">-&gt;</span> adapt <span class="op">$</span> <span class="dt">IO</span><span class="op">.</span><span class="fu">readFile</span> path</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">WriteFile</span> path contents <span class="ot">-&gt;</span> adapt <span class="op">$</span> <span class="dt">IO</span><span class="op">.</span><span class="fu">writeFile</span> path contents</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    adapt m <span class="ot">=</span> liftIO m <span class="ot">`catchIO`</span> \e <span class="ot">-&gt;</span> throwError <span class="op">.</span> <span class="dt">FsError</span> <span class="op">$</span> <span class="fu">show</span> e</span></code></pre></div>
+<p>Then we write a simple function that requires the FileSystem of effects and writes and reads from a text file.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">writeAndReadExampleFile ::</span> (<span class="dt">FileSystem</span> <span class="op">:&gt;</span> es) <span class="ot">=&gt;</span> <span class="dt">Eff</span> es <span class="dt">String</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>writeAndReadExampleFile <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  writeFile&#39; <span class="st">&quot;/tmp/effectful-example.txt&quot;</span> <span class="st">&quot;Hello from Effectful!\n&quot;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  readFile&#39; <span class="st">&quot;/tmp/effectful-example.txt&quot;</span></span></code></pre></div>
+<p>We run the effect by taking off one interpreter at a time. <code>runFileSystemIO</code> executes the <code>FileSystem</code> effect, <code>runError @FsError</code> executes the <code>Error</code> effect, and <code>runEff</code> executes <code>IOE</code> to get back to plain <code>IO</code>. The <code>@FsError</code> type application tells <code>runError</code> which error type to handle, since it would otherwise be ambiguous. <code>runError</code> turns a computation into <code>Either (CallStack, FsError) a</code>: a <code>Right</code> on success, or a <code>Left</code> carrying the error along with the call stack from where it was thrown. We pattern match on that in <code>report</code>, using <code>prettyCallStack</code> to render the stack as readable text. If you run this in <code>main</code>, it writes a file, reads the data back, and prints it to stdout.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">testMain ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>testMain <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">putStrLn</span> <span class="st">&quot;== runFileSystemIO (real disk) ==&quot;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  ioResult <span class="ot">&lt;-</span> runEff <span class="op">.</span> runError <span class="op">@</span><span class="dt">FsError</span> <span class="op">.</span> runFileSystemIO <span class="op">$</span> writeAndReadExampleFile</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  report ioResult</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    report res <span class="ot">=</span> <span class="kw">case</span> res <span class="kw">of</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">Left</span> (callStack, <span class="dt">FsError</span> err) <span class="ot">-&gt;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">putStrLn</span> <span class="op">$</span> <span class="st">&quot;File system error: &quot;</span> <span class="op">&lt;&gt;</span> err <span class="op">&lt;&gt;</span> <span class="st">&quot;\n&quot;</span> <span class="op">&lt;&gt;</span> prettyCallStack callStack</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>      <span class="dt">Right</span> contents <span class="ot">-&gt;</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        <span class="fu">putStr</span> <span class="op">$</span> <span class="st">&quot;Read back:\n&quot;</span> <span class="op">&lt;&gt;</span> contents</span></code></pre></div>
+<p>Now we define a second interpreter for the same effect. This treats the file system as a pure Map data structure. <code>reinterpret</code> allows us to run an internal effect that does not exist outside of this function. In this case it is a <code>State</code> effect, which is what we need to thread the in-memory <code>Map</code> through each read and write in place of the disk. Because the file system only shows up as an effect in the type signature, we can swap in this pure interpreter and run the exact same program with no IO at all. This makes effectful code easier to test.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>runFileSystemPure</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ot">  ::</span> (<span class="dt">Error</span> <span class="dt">FsError</span> <span class="op">:&gt;</span> es)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="ot">=&gt;</span> <span class="dt">Map</span> <span class="dt">FilePath</span> <span class="dt">String</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="ot">-&gt;</span> <span class="dt">Eff</span> (<span class="dt">FileSystem</span> <span class="op">:</span> es) a</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="ot">-&gt;</span> <span class="dt">Eff</span> es (a, <span class="dt">Map</span> <span class="dt">FilePath</span> <span class="dt">String</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>runFileSystemPure fs0 <span class="ot">=</span> reinterpret (runState fs0) <span class="op">$</span> \_ eff <span class="ot">-&gt;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> eff <span class="kw">of</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">ReadFile</span> path <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>      fs <span class="ot">&lt;-</span> get</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> Map.lookup path fs <span class="kw">of</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> contents <span class="ot">-&gt;</span> <span class="fu">pure</span> contents</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Nothing</span>       <span class="ot">-&gt;</span> throwError <span class="op">.</span> <span class="dt">FsError</span> <span class="op">$</span> <span class="st">&quot;no such file: &quot;</span> <span class="op">&lt;&gt;</span> path</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">WriteFile</span> path contents <span class="ot">-&gt;</span> modify (Map.insert path contents)</span></code></pre></div>
+<p>And an IO function for running the pure effect in main.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ot">testPureEffect ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>testPureEffect <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">putStrLn</span> <span class="st">&quot;\n== runFileSystemPure (in-memory) ==&quot;</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> pureResult <span class="ot">=</span> runPureEff <span class="op">.</span> runError <span class="op">@</span><span class="dt">FsError</span> <span class="op">.</span> runFileSystemPure Map.empty <span class="op">$</span> writeAndReadExampleFile</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  report (<span class="fu">fmap</span> <span class="fu">fst</span> pureResult)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    report res <span class="ot">=</span> <span class="kw">case</span> res <span class="kw">of</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>      <span class="dt">Left</span> (callStack, <span class="dt">FsError</span> err) <span class="ot">-&gt;</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>        <span class="fu">putStrLn</span> <span class="op">$</span> <span class="st">&quot;File system error: &quot;</span> <span class="op">&lt;&gt;</span> err <span class="op">&lt;&gt;</span> <span class="st">&quot;\n&quot;</span> <span class="op">&lt;&gt;</span> prettyCallStack callStack</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>      <span class="dt">Right</span> contents <span class="ot">-&gt;</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>        <span class="fu">putStr</span> <span class="op">$</span> <span class="st">&quot;Read back:\n&quot;</span> <span class="op">&lt;&gt;</span> contents</span></code></pre></div>
+<p>In order to show what error messages look like when you include an effect that is not included in the type signature, we will create a second effect system. Following the patterns from above, this should be pretty straightforward. Define the constructor, make the system dynamic, add a function for the constructor, then create an interpreter function.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Logger</span><span class="ot"> ::</span> <span class="dt">Effect</span> <span class="kw">where</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">LogMsg</span><span class="ot"> ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Logger</span> m ()</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">DispatchOf</span> <span class="dt">Logger</span> <span class="ot">=</span> <span class="dt">Dynamic</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ot">logMsg ::</span> (<span class="dt">Logger</span> <span class="op">:&gt;</span> es) <span class="ot">=&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Eff</span> es ()</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>logMsg msg <span class="ot">=</span> send (<span class="dt">LogMsg</span> msg)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="ot">runLoggerIO ::</span> (<span class="dt">IOE</span> <span class="op">:&gt;</span> es) <span class="ot">=&gt;</span> <span class="dt">Eff</span> (<span class="dt">Logger</span> <span class="op">:</span> es) a <span class="ot">-&gt;</span> <span class="dt">Eff</span> es a</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>runLoggerIO <span class="ot">=</span> interpret <span class="op">$</span> \_ (<span class="dt">LogMsg</span> msg) <span class="ot">-&gt;</span> liftIO (<span class="fu">putStrLn</span> (<span class="st">&quot;[log] &quot;</span> <span class="op">&lt;&gt;</span> msg))</span></code></pre></div>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- uncomment this code to see compiler error</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- this cannot compile because Logger is not part of the type signature</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">-- writeAndReadExampleFileBroken :: (FileSystem :&gt; es) =&gt; Eff es String</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- writeAndReadExampleFileBroken = do</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co">--   writeFile&#39; &quot;/tmp/effectful-example.txt&quot; &quot;Hello from Effectful with FileSystem and Logger!\n&quot;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">--   result &lt;- readFile&#39; &quot;/tmp/effectful-example.txt&quot;</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">--   logMsg result</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">--   pure result</span></span></code></pre></div>
+<p>Uncommenting <code>writeAndReadExampleFileBroken</code> and compiling produces the following error. GHC notices that <code>logMsg</code> needs <code>Logger :&gt; es</code>, but the type signature only promises <code>FileSystem :&gt; es</code>, so it refuses to compile.</p>
+<pre><code>Main.lhs:193:3: error: [GHC-39999]
+    • Could not deduce ‘Logger :&gt; es’ arising from a use of ‘logMsg’
+      from the context: FileSystem :&gt; es
+        bound by the type signature for:
+                   writeAndReadExampleFileBroken :: forall (es :: [Effect]).
+                                                    (FileSystem :&gt; es) =&gt;
+                                                    Eff es String
+        at Main.lhs:189:1-68
+    • In a stmt of a &#39;do&#39; block: logMsg result
+      In the expression:
+        do writeFile&#39;
+             &quot;/tmp/effectful-example.txt&quot;
+             &quot;Hello from Effectful with FileSystem and Logger!\n&quot;
+           result &lt;- readFile&#39; &quot;/tmp/effectful-example.txt&quot;
+           logMsg result
+           pure result
+      In an equation for ‘writeAndReadExampleFileBroken’:
+          writeAndReadExampleFileBroken
+            = do writeFile&#39;
+                   &quot;/tmp/effectful-example.txt&quot;
+                   &quot;Hello from Effectful with FileSystem and Logger!\n&quot;
+                 result &lt;- readFile&#39; &quot;/tmp/effectful-example.txt&quot;
+                 logMsg result
+                 ....
+    |
+193 |   logMsg result
+    |   ^^^^^^</code></pre>
+<p>In order to make it compile, we need to add Logger to the type signature.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ot">writeReadLogExampleFile ::</span> (<span class="dt">FileSystem</span> <span class="op">:&gt;</span> es, <span class="dt">Logger</span> <span class="op">:&gt;</span> es) <span class="ot">=&gt;</span> <span class="dt">Eff</span> es <span class="dt">String</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>writeReadLogExampleFile <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  writeFile&#39; <span class="st">&quot;/tmp/effectful-example2.txt&quot;</span> <span class="st">&quot;Hello from Effectful with FileSystem and Logger!\n&quot;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> readFile&#39; <span class="st">&quot;/tmp/effectful-example2.txt&quot;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  logMsg result</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pure</span> result</span></code></pre></div>
+<p>Now this function needs two effects, so we run it through two interpreters: <code>runLoggerIO</code> and <code>runFileSystemIO</code>, ahead of <code>runError</code> and <code>runEff</code>. Each one removes its effect from the stack until it reaches <code>IO</code>.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ot">testLoggerEffect ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>testLoggerEffect <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">putStrLn</span> <span class="st">&quot;\n== runFileSystemIO + runLoggerIO ==&quot;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  result <span class="ot">&lt;-</span> runEff <span class="op">.</span> runError <span class="op">@</span><span class="dt">FsError</span> <span class="op">.</span> runFileSystemIO <span class="op">.</span> runLoggerIO <span class="op">$</span> writeReadLogExampleFile</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> result <span class="kw">of</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Left</span> (callStack, <span class="dt">FsError</span> err) <span class="ot">-&gt;</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>      <span class="fu">putStrLn</span> <span class="op">$</span> <span class="st">&quot;File system error: &quot;</span> <span class="op">&lt;&gt;</span> err <span class="op">&lt;&gt;</span> <span class="st">&quot;\n&quot;</span> <span class="op">&lt;&gt;</span> prettyCallStack callStack</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Right</span> contents <span class="ot">-&gt;</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">putStr</span> <span class="op">$</span> <span class="st">&quot;Read back:\n&quot;</span> <span class="op">&lt;&gt;</span> contents</span></code></pre></div>
+<p><code>main</code> ties the three examples together.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  testMain</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  testPureEffect</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  testLoggerEffect</span></code></pre></div>
+<p>Running the program prints the following:</p>
+<pre><code>== runFileSystemIO (real disk) ==
+Read back:
+Hello from Effectful!
+
+== runFileSystemPure (in-memory) ==
+Read back:
+Hello from Effectful!
+
+== runFileSystemIO + runLoggerIO ==
+[log] Hello from Effectful with FileSystem and Logger!
+
+Read back:
+Hello from Effectful with FileSystem and Logger!</code></pre>
+<p>Try compiling and running this code locally. You can find the source code <a href="https://github.com/mchaver/mchaver.com/tree/master/posts/2026-06-03-babys-first-effects-with-haskell-effectful.lhs">here</a>.</p>]]></summary>
+</entry>
+<entry>
+    <title>Why I am preparing the CCNA exam</title>
+    <link href="https://mchaver.com/posts/2026-04-30-ccna-prep.html" />
+    <id>https://mchaver.com/posts/2026-04-30-ccna-prep.html</id>
+    <published>2026-04-30T00:00:00Z</published>
+    <updated>2026-04-30T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>I’ve recently wanted to get a deeper understanding of computer networking. I started with some Udemy course. I was really just interested in socket programming, but curiouristy eventually led me to Jeremy’s IT Lab. I am sure most people preparing the CCNA are aware of this course. It is an impressive free course.
+The structure is a lecture, quiz, lab and anki deck. Sometimes the lectures are a split into multiple videos. I think the real attraction of CCNA is configuring multiple systems and making them work. Also, the debugging part is enticing for software developers.
+I don’t think it is something I will use professionally, but it is nice, well defined goal and I am learning a lot on the journey. I don’t know if I will take the CCNA in the end, but I will continue to prepare like I will.</p>]]></summary>
+</entry>
+<entry>
+    <title>Writing Again</title>
+    <link href="https://mchaver.com/posts/2026-04-16-writing-again.html" />
+    <id>https://mchaver.com/posts/2026-04-16-writing-again.html</id>
+    <published>2026-04-16T00:00:00Z</published>
+    <updated>2026-04-16T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>I am finally taking time to clean up this blog. The last time I wrote here was seven years ago, but I have kept the URL around all this time. My previous focus was writing about Haskell. Mostly to try to keep up with things I learned at work, and act as a future reference for myslef. Haskell is still around, but I feel less excited about it these days. Maybe it is a sign of maturity or maybe it just feels normal after using it so long. It still has a small, but strong academic and industrial community that I will follow, but I want to expand my focus.</p>
+<p>I want to learn more about Linux, C, computer networking and computer graphics. In the age of LLMs, I want to be even more conscious of what I consume and how I do programming. I use LLMs as tools to enhance my understanding. If work requires me to use agentic LLMs, I’m fine with that, but in my own personal projects I want to push my understanding further, not just blindly generate code.</p>
+<p>So, cheers to being back!</p>]]></summary>
+</entry>
+<entry>
+    <title>Monad and Monad Transformer Templates</title>
+    <link href="https://mchaver.com/posts/2019-01-01-monad-and-monad-transformer-templates.html" />
+    <id>https://mchaver.com/posts/2019-01-01-monad-and-monad-transformer-templates.html</id>
+    <published>2019-01-01T00:00:00Z</published>
+    <updated>2019-01-01T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>This is just a quick reference for implementing monad and monad transform type class instances. Monad transformers in particular require a lot of boilerplate code. Monad transformers allow us to combine multiple monads like <code>Maybe</code>, <code>Reader</code> and <code>IO</code> into a single monad stack and access the capabilities of each monad.
+A common stack is <code>ReaderT Env IO</code>, where <code>Env</code> may contain mutable references.
+This is generally recommended over using <code>WriterT</code> and <code>StateT</code> for performance and safety issues.
+You can read more about best practices in this FPComplete article: <a href="https://www.fpcomplete.com/blog/2017/06/readert-design-pattern">ReaderT Design Pattern</a>.</p>
+<h2 id="monad-template">Monad Template</h2>
+<p>You should be generally familiar with how <a href="https://hackage.haskell.org/package/base-4.10.1.0/docs/src/GHC.Base.html#Functor">Functor</a>, <a href="https://hackage.haskell.org/package/base-4.10.1.0/docs/src/GHC.Base.html#Applicative">Applicative</a> and
+<a href="https://hackage.haskell.org/package/base-4.10.1.0/docs/src/GHC.Base.html#Monad">Monad</a> are defined in GHC. Here is a slightly redacted version.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Functor</span> f <span class="kw">where</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ot">  fmap ::</span> (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> f a <span class="ot">-&gt;</span> f b</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Functor</span> f <span class="ot">=&gt;</span> <span class="dt">Applicative</span> f <span class="kw">where</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Lift a value.</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ot">  pure ::</span> a <span class="ot">-&gt;</span> f a</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Sequential application.</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="ot">  (&lt;*&gt;) ::</span> f (a <span class="ot">-&gt;</span> b) <span class="ot">-&gt;</span> f a <span class="ot">-&gt;</span> f b</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  (<span class="op">&lt;*&gt;</span>) <span class="ot">=</span> liftA2 <span class="fu">id</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Lift a binary function to actions.</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="ot">  liftA2 ::</span> (a <span class="ot">-&gt;</span> b <span class="ot">-&gt;</span> c) <span class="ot">-&gt;</span> f a <span class="ot">-&gt;</span> f b <span class="ot">-&gt;</span> f c</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  liftA2 f x <span class="ot">=</span> (<span class="op">&lt;*&gt;</span>) (<span class="fu">fmap</span> f x)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Sequence actions, discarding the value of the first argument.</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="ot">  (*&gt;) ::</span> f a <span class="ot">-&gt;</span> f b <span class="ot">-&gt;</span> f b</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  a1 <span class="op">*&gt;</span> a2 <span class="ot">=</span> (<span class="fu">id</span> <span class="op">&lt;$</span> a1) <span class="op">&lt;*&gt;</span> a2</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Sequence actions, discarding the value of the second argument.</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="ot">  (&lt;*) ::</span> f a <span class="ot">-&gt;</span> f b <span class="ot">-&gt;</span> f a</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  (<span class="op">&lt;*</span>) <span class="ot">=</span> liftA2 <span class="fu">const</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> <span class="dt">Applicative</span> m <span class="ot">=&gt;</span> <span class="dt">Monad</span> m <span class="kw">where</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Sequentially compose two actions, passing any value produced</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- by the first as an argument to the second.</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="ot">  (&gt;&gt;=)       ::</span> <span class="kw">forall</span> a b<span class="op">.</span> m a <span class="ot">-&gt;</span> (a <span class="ot">-&gt;</span> m b) <span class="ot">-&gt;</span> m b</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Sequentially compose two actions, discarding any value produced</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- by the first, like sequencing operators (such as the semicolon)</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- in imperative languages.</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a><span class="ot">  (&gt;&gt;)        ::</span> <span class="kw">forall</span> a b<span class="op">.</span> m a <span class="ot">-&gt;</span> m b <span class="ot">-&gt;</span> m b</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>  m <span class="op">&gt;&gt;</span> k <span class="ot">=</span> m <span class="op">&gt;&gt;=</span> \_ <span class="ot">-&gt;</span> k</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Inject a value into the monadic type.</span></span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a><span class="ot">  return ::</span> a <span class="ot">-&gt;</span> m a</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> <span class="ot">=</span> <span class="fu">pure</span></span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- | Fail with a message.</span></span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a><span class="ot">  fail ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> m a</span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fail</span> s <span class="ot">=</span> errorWithoutStackTrace s</span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a><span class="ot">join ::</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> m (m a) <span class="ot">-&gt;</span> m a</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>join x <span class="ot">=</span>  x <span class="op">&gt;&gt;=</span> <span class="fu">id</span></span></code></pre></div>
+<p>These are my one sentence motivations (not definitions) for using these type classes in Haskell:</p>
+<ul>
+<li><p>Functor: apply a function to a value/values in a container without removing the container.</p></li>
+<li><p>Applicative: build values from independent computations.</p></li>
+<li><p>Monad: build values from interdependent computations.</p></li>
+</ul>
+<p>Let’s define our own type and instances for these three type classes. I use the naming scheme from OCaml <code>Option</code> so we can compile
+and avoid name clashes with <code>Maybe</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Applicative</span> (liftA2, <span class="dt">Alternative</span>(..))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Monad</span> (liftM, ap, <span class="dt">MonadPlus</span>(..))</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Monad.IO.Class</span> (<span class="dt">MonadIO</span>(..))</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Control.Monad.Trans.Class</span> (<span class="dt">MonadTrans</span>(..), lift)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Option</span> a <span class="ot">=</span> <span class="dt">None</span> <span class="op">|</span> <span class="dt">Some</span> a <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Ord</span>, <span class="dt">Show</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">Option</span> <span class="kw">where</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmap</span> _ <span class="dt">None</span>     <span class="ot">=</span> <span class="dt">None</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmap</span> f (<span class="dt">Some</span> a) <span class="ot">=</span> <span class="dt">Some</span> (f a)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Applicative</span> <span class="dt">Option</span> <span class="kw">where</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pure</span> <span class="ot">=</span> <span class="dt">Some</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Some</span> f <span class="op">&lt;*&gt;</span> m  <span class="ot">=</span> <span class="fu">fmap</span> f m</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="dt">None</span>   <span class="op">&lt;*&gt;</span> _m <span class="ot">=</span> <span class="dt">None</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  liftA2 f (<span class="dt">Some</span> x) (<span class="dt">Some</span> y) <span class="ot">=</span> <span class="dt">Some</span> (f x y)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  liftA2 _ _ _               <span class="ot">=</span> <span class="dt">None</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Some</span> _m1 <span class="op">*&gt;</span> m2  <span class="ot">=</span> m2</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>  <span class="dt">None</span> <span class="op">*&gt;</span> _m2     <span class="ot">=</span> <span class="dt">None</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Monad</span> <span class="dt">Option</span> <span class="kw">where</span></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  (<span class="dt">Some</span> x) <span class="op">&gt;&gt;=</span> k      <span class="ot">=</span> k x</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>  <span class="dt">None</span>     <span class="op">&gt;&gt;=</span> _      <span class="ot">=</span> <span class="dt">None</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>  (<span class="op">&gt;&gt;</span>)                <span class="ot">=</span> (<span class="op">*&gt;</span>)</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fail</span> _              <span class="ot">=</span> <span class="dt">None</span></span></code></pre></div>
+<p>Here are some motivating functions for our Monad instance. We have three functions that we want to combine:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">residentToAddress ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Option</span> <span class="dt">String</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>residentToAddress <span class="st">&quot;Foo&quot;</span> <span class="ot">=</span> <span class="dt">Some</span> <span class="st">&quot;10 Downing Street&quot;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>residentToAddress <span class="st">&quot;Bar&quot;</span> <span class="ot">=</span> <span class="dt">Some</span> <span class="st">&quot;1600 Pennsylvania Ave NW&quot;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>residentToAddress _     <span class="ot">=</span> <span class="dt">None</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ot">addressToPhoneNumber ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Option</span> <span class="dt">String</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>addressToPhoneNumber <span class="st">&quot;10 Downing Street&quot;</span>        <span class="ot">=</span> <span class="dt">Some</span> <span class="st">&quot;+44 20 7925 0918&quot;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>addressToPhoneNumber <span class="st">&quot;1600 Pennsylvania Ave NW&quot;</span> <span class="ot">=</span> <span class="dt">Some</span> <span class="st">&quot;+1 202-456-1111&quot;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>addressToPhoneNumber _                          <span class="ot">=</span> <span class="dt">None</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="ot">phoneNumberToAccountNumber ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Option</span> <span class="dt">String</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>phoneNumberToAccountNumber <span class="st">&quot;+44 20 7925 0918&quot;</span> <span class="ot">=</span> <span class="dt">Some</span> <span class="st">&quot;1111-1111-1111-1111&quot;</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>phoneNumberToAccountNumber <span class="st">&quot;+1 202-456-1111&quot;</span>  <span class="ot">=</span> <span class="dt">Some</span> <span class="st">&quot;2222-2222-2222-2222&quot;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>phoneNumberToAccountNumber _                  <span class="ot">=</span> <span class="dt">None</span> </span></code></pre></div>
+<p>Without using monads it looks like this:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">residentToAccountNumber ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Option</span> <span class="dt">String</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>residentToAccountNumber r <span class="ot">=</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">case</span> residentToAddress r <span class="kw">of</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Some</span> a <span class="ot">-&gt;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> addressToPhoneNumber a <span class="kw">of</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Some</span> p <span class="ot">-&gt;</span> phoneNumberToAccountNumber p</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>        <span class="dt">None</span> <span class="ot">-&gt;</span> <span class="dt">None</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">None</span>   <span class="ot">-&gt;</span> <span class="dt">None</span></span></code></pre></div>
+<p>Using monads (particularly with do-syntax) we can simplify it:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">residentToAccountNumberDoSyntaxSugar ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Option</span> <span class="dt">String</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>residentToAccountNumberDoSyntaxSugar r <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  address <span class="ot">&lt;-</span> residentToAddress r</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  phoneNumber <span class="ot">&lt;-</span> addressToPhoneNumber address</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  residentToAccountNumber phoneNumber  </span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="ot">residentToAccountNumberNoSyntaxSugar ::</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">Option</span> <span class="dt">String</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>residentToAccountNumberNoSyntaxSugar r <span class="ot">=</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  residentToAddress r <span class="op">&gt;&gt;=</span> \address <span class="ot">-&gt;</span> addressToPhoneNumber address <span class="op">&gt;&gt;=</span> \phoneNumber <span class="ot">-&gt;</span> residentToAccountNumber phoneNumber</span></code></pre></div>
+<h2 id="monad-transformer-template">Monad Transformer Template</h2>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">OptionT</span> m a <span class="ot">=</span> <span class="dt">OptionT</span> {<span class="ot"> runOptionT ::</span> m (<span class="dt">Option</span> a) }</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ot">mapOptionT ::</span> (m (<span class="dt">Option</span> a) <span class="ot">-&gt;</span> n (<span class="dt">Option</span> b)) <span class="ot">-&gt;</span> <span class="dt">OptionT</span> m a <span class="ot">-&gt;</span> <span class="dt">OptionT</span> n b</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>mapOptionT f <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">.</span> f <span class="op">.</span> runOptionT</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> (<span class="dt">Functor</span> m) <span class="ot">=&gt;</span> <span class="dt">Functor</span> (<span class="dt">OptionT</span> m) <span class="kw">where</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fmap</span> f <span class="ot">=</span> mapOptionT (<span class="fu">fmap</span> (<span class="fu">fmap</span> f))</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> (<span class="dt">Functor</span> m, <span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Applicative</span> (<span class="dt">OptionT</span> m) <span class="kw">where</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pure</span> <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">.</span> <span class="fu">pure</span> <span class="op">.</span> <span class="dt">Some</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  mf <span class="op">&lt;*&gt;</span> mx <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>      mb_f <span class="ot">&lt;-</span> runOptionT mf</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> mb_f <span class="kw">of</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        <span class="dt">None</span> <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">None</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Some</span> f  <span class="ot">-&gt;</span> <span class="kw">do</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>          mb_x <span class="ot">&lt;-</span> runOptionT mx</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>          <span class="kw">case</span> mb_x <span class="kw">of</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>            <span class="dt">None</span> <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">None</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>            <span class="dt">Some</span> x  <span class="ot">-&gt;</span> <span class="fu">pure</span> (<span class="dt">Some</span> (f x))</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  m <span class="op">*&gt;</span> k <span class="ot">=</span> m <span class="op">&gt;&gt;=</span> \_ <span class="ot">-&gt;</span> k</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Monad</span> (<span class="dt">OptionT</span> m) <span class="kw">where</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span> <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">.</span> <span class="fu">pure</span> <span class="op">.</span> <span class="dt">Some</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  x <span class="op">&gt;&gt;=</span> f <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>      v <span class="ot">&lt;-</span> runOptionT x</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> v <span class="kw">of</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>        <span class="dt">None</span>   <span class="ot">-&gt;</span> <span class="fu">pure</span> <span class="dt">None</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Some</span> y <span class="ot">-&gt;</span> runOptionT (f y)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">fail</span> _ <span class="ot">=</span> <span class="dt">OptionT</span> (<span class="fu">pure</span> <span class="dt">None</span>)</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">MonadTrans</span> <span class="dt">OptionT</span> <span class="kw">where</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>  lift <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">.</span> liftM <span class="dt">Some</span></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> (<span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> <span class="dt">MonadIO</span> (<span class="dt">OptionT</span> m) <span class="kw">where</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>  liftIO <span class="ot">=</span> lift <span class="op">.</span> liftIO</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> <span class="dt">Alternative</span> (<span class="dt">OptionT</span> m) <span class="kw">where</span></span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>  empty   <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">$</span> <span class="fu">pure</span> <span class="dt">None</span></span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>  x <span class="op">&lt;|&gt;</span> y <span class="ot">=</span> <span class="dt">OptionT</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>              ov <span class="ot">&lt;-</span> runOptionT x</span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>              <span class="kw">case</span> ov <span class="kw">of</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>                <span class="dt">None</span>   <span class="ot">-&gt;</span> runOptionT y</span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>                <span class="dt">Some</span> _ <span class="ot">-&gt;</span> <span class="fu">pure</span> ov</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a><span class="kw">instance</span> <span class="dt">Monad</span> m <span class="ot">=&gt;</span> <span class="dt">MonadPlus</span> (<span class="dt">OptionT</span> m) <span class="kw">where</span> </span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>  mzero <span class="ot">=</span> empty</span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>  mplus <span class="ot">=</span> (<span class="op">&lt;|&gt;</span>)</span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a><span class="ot">residentToAddressMT ::</span> <span class="dt">IO</span> () <span class="ot">-&gt;</span> <span class="dt">String</span> <span class="ot">-&gt;</span> <span class="dt">OptionT</span> <span class="dt">IO</span> <span class="dt">String</span></span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>residentToAddressMT action <span class="st">&quot;Foo&quot;</span> <span class="ot">=</span> <span class="kw">do</span> liftIO action; <span class="dt">OptionT</span> <span class="op">.</span> <span class="fu">pure</span> <span class="op">$</span> <span class="dt">Some</span> <span class="st">&quot;10 Downing Street&quot;</span></span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>residentToAddressMT action <span class="st">&quot;Bar&quot;</span> <span class="ot">=</span> <span class="kw">do</span> liftIO action; <span class="dt">OptionT</span> <span class="op">.</span> <span class="fu">pure</span> <span class="op">$</span> <span class="dt">Some</span> <span class="st">&quot;1600 Pennsylvania Ave NW&quot;</span></span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>residentToAddressMT action _     <span class="ot">=</span> <span class="kw">do</span> liftIO action; <span class="dt">OptionT</span> <span class="op">.</span> <span class="fu">pure</span> <span class="op">$</span> <span class="dt">None</span></span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a><span class="ot">residentToAccountNumberMonadTransformer ::</span> (<span class="dt">OptionT</span> <span class="dt">IO</span> <span class="dt">String</span>)</span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>residentToAccountNumberMonadTransformer <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>  r  <span class="ot">&lt;-</span> liftIO <span class="fu">getLine</span></span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>  _a <span class="ot">&lt;-</span> residentToAddressMT (<span class="fu">print</span> <span class="st">&quot;printing from residentToAddressMT&quot;</span>) r</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a>  <span class="co">-- you can wrap pure Maybe Monad</span></span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>  <span class="dt">OptionT</span> <span class="op">.</span> <span class="fu">pure</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a>    address     <span class="ot">&lt;-</span> residentToAddress r</span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a>    phoneNumber <span class="ot">&lt;-</span> addressToPhoneNumber address</span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a>    phoneNumberToAccountNumber phoneNumber</span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>  oaccount <span class="ot">&lt;-</span> runOptionT residentToAccountNumberMonadTransformer</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> oaccount</span></code></pre></div>]]></summary>
+</entry>
+<entry>
+    <title>Change Making Problem in Haskell</title>
+    <link href="https://mchaver.com/posts/2018-12-31-change-making-problem-in-haskell.html" />
+    <id>https://mchaver.com/posts/2018-12-31-change-making-problem-in-haskell.html</id>
+    <published>2018-12-31T00:00:00Z</published>
+    <updated>2018-12-31T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>The <a href="https://en.wikipedia.org/wiki/Change-making_problem">Change-making problem</a> asks us to find the minimum number of coins that add up to a target value. For example, if we have an infinite amount of coins of values <code>1, 2, 5</code>, the smallest set that adds up to <code>11</code> is <code>1, 5, 5</code>, whereas 11 <code>1</code> value coins would be the largest. Here is an outline of the recursive algorithm in imperative form (I will to convert this to real Python at some point):</p>
+<pre><code>coins = unique list of numbers &gt;= 0
+coin_index = length of coins
+target = the value the sum of selected coins must sum, positive value
+
+count(solution, coins, coin_index, target):
+    # solution has been found
+    if (target == 0):
+        return [solution];
+
+    # solution does not exist
+    if (target &lt; 0):
+        return [];
+
+    # no more coins to iterate over, but target has not been reached
+    # this solution does not exist
+    if (coin_index &lt;= 0 &amp;&amp; target &gt;= 1):
+        return [];
+
+    # the left branch tries a different coin
+    # the right branch uses the same coin, adds the coin to the solution, and
+    # deducts the coins value from the target
+    return
+      append(
+        count( solutions, coins, coin_index - 1, target)
+             , count(append(solutions, coins[coin_index-1]), coins, coin_index, target - coins[coin_index - 1])
+             )
+        );
+
+return get_small_list(count([], coins, coin_index, target));</code></pre>
+<p>The translation to Haskell is pretty straightforward. I then use a fold to get the smallest length solution. The results from <code>makeChangesSolutions</code> can also be used to answer how many solutions are there. You can also filter the results to answer other things like which solutions have a certain amount coin, etc.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ot">makeChangeSolutions ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [[<span class="dt">Int</span>]]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>makeChangeSolutions coins target <span class="ot">=</span> makeChange&#39; [] coins (<span class="fu">length</span> coins) target</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ot">    makeChange&#39; ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [[<span class="dt">Int</span>]]</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    makeChange&#39; coinSet coins coinIndex target</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> target <span class="op">&lt;</span>  <span class="dv">0</span> <span class="ot">=</span> []</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> target <span class="op">==</span> <span class="dv">0</span> <span class="ot">=</span> [coinSet]</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> coinIndex <span class="op">==</span> <span class="dv">0</span> <span class="op">&amp;&amp;</span> target <span class="op">&gt;=</span> <span class="dv">1</span> <span class="ot">=</span> []</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> (makeChange&#39; coinSet coins (coinIndex <span class="op">-</span> <span class="dv">1</span>) target) <span class="op">++</span> (makeChange&#39; (coinSet  <span class="op">++</span> [coins <span class="op">!!</span> (coinIndex <span class="op">-</span> <span class="dv">1</span>)]) coins coinIndex (target <span class="op">-</span> (coins <span class="op">!!</span> (coinIndex <span class="op">-</span> <span class="dv">1</span>))))</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="ot">minimumChangeSolution ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>minimumChangeSolution coins target <span class="ot">=</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">if</span> <span class="fu">length</span> solutions <span class="op">==</span> <span class="dv">0</span> <span class="kw">then</span> [] <span class="kw">else</span> <span class="fu">foldl</span> (\a b <span class="ot">-&gt;</span> <span class="kw">if</span> <span class="fu">length</span> a <span class="op">&lt;</span> <span class="fu">length</span> b <span class="kw">then</span> a <span class="kw">else</span> b) (<span class="fu">head</span> solutions) (<span class="fu">tail</span> solutions)</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    solutions <span class="ot">=</span> makeChangeSolutions coins target</span></code></pre></div>
+<p>Both these implementations are brute force though and they repeat calculations that we could save and lookup instead of recalculating them.</p>
+<p>The dynamic programming implementation was quite challenging because I want to return not just the amount of solutions are the number of coins in the solution, but the actual soltion.
+Returning the former two is not too hard with some table lookups, but the latter is more challenging. I ended up referring to a Python implementation in the <a href="https://interactivepython.org/courselib/static/pythonds/Recursion/DynamicProgramming.html">Problem Solving with Algorithms and Data Structures</a>. That looks like this:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> dpMakeChange(coinValueList,change,minCoins,coinsUsed):</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>   <span class="cf">for</span> cents <span class="kw">in</span> <span class="bu">range</span>(change<span class="op">+</span><span class="dv">1</span>):</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>      coinCount <span class="op">=</span> cents</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>      newCoin <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> j <span class="kw">in</span> [c <span class="cf">for</span> c <span class="kw">in</span> coinValueList <span class="cf">if</span> c <span class="op">&lt;=</span> cents]:</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> minCoins[cents<span class="op">-</span>j] <span class="op">+</span> <span class="dv">1</span> <span class="op">&lt;</span> coinCount:</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>               coinCount <span class="op">=</span> minCoins[cents<span class="op">-</span>j]<span class="op">+</span><span class="dv">1</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>               newCoin <span class="op">=</span> j</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      minCoins[cents] <span class="op">=</span> coinCount</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>      coinsUsed[cents] <span class="op">=</span> newCoin</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>   <span class="cf">return</span> minCoins[change]</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> printCoins(coinsUsed,change):</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>   coin <span class="op">=</span> change</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>   <span class="cf">while</span> coin <span class="op">&gt;</span> <span class="dv">0</span>:</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>      thisCoin <span class="op">=</span> coinsUsed[coin]</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>      <span class="bu">print</span>(thisCoin)</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>      coin <span class="op">=</span> coin <span class="op">-</span> thisCoin</span></code></pre></div>
+<p>My Haskell implementation is quite complex. I ended up using two <code>foldl</code> which probably is not good for performance. I owe you an explanation of the code.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">initMap ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Map.Map</span> <span class="dt">Int</span> <span class="dt">Int</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>initMap x <span class="ot">=</span> Map.fromList <span class="op">$</span> <span class="fu">zip</span> [<span class="dv">0</span><span class="op">..</span>x] (<span class="fu">replicate</span> (x<span class="op">+</span><span class="dv">1</span>) <span class="dv">0</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="ot">dpMinimumChangeSolution ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>dpMinimumChangeSolution coinValues change <span class="ot">=</span> filterUsedCoins coinsUsedMap change []</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    (_, coinsUsedMap) <span class="ot">=</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>      <span class="fu">foldl</span> (\(minCoins, coinsUsed) cents <span class="ot">-&gt;</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> (coinCount&#39;, newCoin&#39;) <span class="ot">=</span> <span class="fu">foldl</span> (\(coinCount, newCoin) j <span class="ot">-&gt;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>             <span class="kw">let</span> (coinCount&#39;, newCoin&#39;) <span class="ot">=</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>                  <span class="kw">case</span> Map.lookup (cents <span class="op">-</span> j) minCoins <span class="kw">of</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>                    <span class="dt">Just</span> res <span class="ot">-&gt;</span> </span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>                      <span class="kw">if</span> (res <span class="op">+</span> <span class="dv">1</span> <span class="op">&lt;</span> coinCount)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>                        <span class="kw">then</span> (res <span class="op">+</span> <span class="dv">1</span>, j)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>                        <span class="kw">else</span> (coinCount, newCoin)</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>                    <span class="dt">Nothing</span> <span class="ot">-&gt;</span> (coinCount, newCoin)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>             <span class="kw">in</span> (coinCount&#39;, newCoin&#39;)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>             ) (cents, <span class="dv">1</span>) (<span class="fu">filter</span> (\c <span class="ot">-&gt;</span> c <span class="op">&lt;=</span> cents) coinValues)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        <span class="kw">in</span> (Map.update (\_ <span class="ot">-&gt;</span> <span class="dt">Just</span> coinCount&#39;) cents minCoins, Map.update (\_ <span class="ot">-&gt;</span> <span class="dt">Just</span> newCoin&#39;) cents coinsUsed)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>      ) (initMap change, initMap change) [<span class="dv">0</span><span class="op">..</span>change]</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="ot">    filterUsedCoins ::</span> <span class="dt">Map.Map</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    filterUsedCoins coinsUsed change res</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> change <span class="op">&gt;</span> <span class="dv">0</span> <span class="ot">=</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>          <span class="kw">case</span> Map.lookup change coinsUsed <span class="kw">of</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>            <span class="dt">Just</span> coin <span class="ot">-&gt;</span> filterUsedCoins coinsUsed (change <span class="op">-</span> coin) (res <span class="op">++</span> [coin])</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>            <span class="dt">Nothing</span>   <span class="ot">-&gt;</span> res <span class="co">-- this shouldn&#39;t happen</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>      <span class="op">|</span> <span class="fu">otherwise</span>  <span class="ot">=</span> res</span></code></pre></div>
+<p>Finally the tests.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>test  <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>test2 <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">5</span>,<span class="dv">10</span>,<span class="dv">21</span>,<span class="dv">25</span>]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> minimumChangeSolution   test <span class="dv">4</span> <span class="co">-- [1,3]</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> dpMinimumChangeSolution test <span class="dv">4</span> <span class="co">-- [1,3]</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> minimumChangeSolution   test2 <span class="dv">63</span> <span class="co">-- [21,21,21]</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> dpMinimumChangeSolution test2 <span class="dv">63</span> <span class="co">-- [21,21,21]</span></span></code></pre></div>]]></summary>
+</entry>
+<entry>
+    <title>Maximum Subarray in Haskell</title>
+    <link href="https://mchaver.com/posts/2018-12-29-maximum-subarrary-in-haskell.html" />
+    <id>https://mchaver.com/posts/2018-12-29-maximum-subarrary-in-haskell.html</id>
+    <published>2018-12-29T00:00:00Z</published>
+    <updated>2018-12-29T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p><a href="https://en.wikipedia.org/wiki/Dynamic_programming">Dynamic programming</a> is an algorithmic technique that trades space for improved runtime performance and takes advantage of overlapping subproblems. <a href="https://en.wikipedia.org/wiki/Memoization">Memoization</a> is a common strategy within Dynamic programming; store the results of expensive computations and look them up when the same input occurs again. Most literature on algorithms provide an imperative programming solution instead of a declarative one. I want to work through some dynamic programming problems with Haskell.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Maximum_subarray_problem">maximum subarray problem</a> is an easy place to start. Given a list of numbers, what is the subarray (contiguous) that sums to the largest value. If the array only includes positive values, then it is the entire subarray. If it includes negative values, then the answer is most likely a subarray. Kadane’s algorithm provides a solution in O(n) time. Here is the imperative form:</p>
+<pre><code>max_so_far = 0
+max_ending_here = 0
+
+For each element in the array a:
+    max_ending_here = max_ending_here + a[i]
+    if (max_ending_here &lt; 0)
+        max_ending_here = 0
+    if (max_so_far &lt; max_ending_here)
+        max_so_far = max_ending_here
+
+return max_so_far</code></pre>
+<p>The strategy is to store the max result of any subarray in <code>max_so_far</code> and when the loop ends, it contains the correct answer. <code>max_ending_here</code> contains the result from some index up to the current index. The beginning index of the subarray is reset if <code>max_ending_here</code> is less than zero, and <code>max_so_far</code> is updated only when it is less than <code>max_ending_here</code>.</p>
+<p>The translation to Haskell is pretty simple. Instead of two mutable values, we create an internal function that takes the updated values of <code>maxSoFar</code> and <code>maxEndingHere</code> and call it recursively over the values of the list and when the list is empty, we return the <code>maxSoFar</code> value.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ot">simpleMaxSubarray ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>simpleMaxSubarray <span class="ot">=</span> simpleMaxSubarray&#39; <span class="dv">0</span> <span class="dv">0</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    simpleMaxSubarray&#39; maxSoFar maxEndingHere []     <span class="ot">=</span> maxSoFar     </span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    simpleMaxSubarray&#39; maxSoFar maxEndingHere (x<span class="op">:</span>xs) <span class="ot">=</span> simpleMaxSubarray&#39; maxSoFar&#39; maxEndingHere&#39; xs</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>      <span class="kw">where</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        maxEndingHere&#39; <span class="ot">=</span> <span class="fu">max</span> x (maxEndingHere <span class="op">+</span> x)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>        maxSoFar&#39;      <span class="ot">=</span> <span class="fu">max</span> maxSoFar maxEndingHere&#39;</span></code></pre></div>
+<p>I decided to improve the function and return the start and end indexes of the max subarray.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">maxSubarray ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> (<span class="dt">Int</span>, <span class="dt">Int</span>, <span class="dt">Int</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>maxSubarray <span class="ot">=</span> maxSubarray&#39; <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span> <span class="dv">0</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    maxSubarray&#39; maxSoFar maxEndingHere i start end []     <span class="ot">=</span> (maxSoFar, start, end)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    maxSubarray&#39; maxSoFar maxEndingHere i start end (x<span class="op">:</span>xs) <span class="ot">=</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>      <span class="kw">let</span> i&#39; <span class="ot">=</span> i <span class="op">+</span> <span class="dv">1</span> </span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>          maxEndingHere&#39; <span class="ot">=</span> maxEndingHere <span class="op">+</span> x</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>      <span class="kw">in</span> </span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>      <span class="kw">if</span> (maxSoFar <span class="op">&lt;</span> maxEndingHere&#39;)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">then</span> maxSubarray&#39; maxEndingHere&#39; maxEndingHere&#39; i&#39; start i xs</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">else</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>          <span class="kw">if</span> maxEndingHere&#39; <span class="op">&lt;</span> <span class="dv">0</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>            <span class="co">-- reset the subarray we are checking</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>            <span class="kw">then</span> maxSubarray&#39; maxSoFar <span class="dv">0</span>              i&#39; i&#39;    i&#39;  xs</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>            <span class="kw">else</span> maxSubarray&#39; maxSoFar maxEndingHere&#39; i&#39; start end xs</span></code></pre></div>
+<p>You can see that the amount of values we need to pass to the function is increasing. This makes it harder to read and keep track of the values. In the future, for more complex algorithms we might consider some monadic tools like <code>Reader</code>, <code>Writer</code> and <code>State</code> to reduce the complexity. We will test <code>maxSubarray</code> below and take a look at some of the results.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>test  <span class="ot">=</span> [<span class="op">-</span><span class="dv">2</span>, <span class="op">-</span><span class="dv">3</span>, <span class="dv">4</span>, <span class="op">-</span><span class="dv">1</span>, <span class="op">-</span><span class="dv">2</span>, <span class="dv">1</span>, <span class="dv">5</span>, <span class="op">-</span><span class="dv">3</span>]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>test2 <span class="ot">=</span> [<span class="op">-</span><span class="dv">2</span>, <span class="dv">1</span>, <span class="op">-</span><span class="dv">3</span>, <span class="dv">4</span>, <span class="op">-</span><span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">1</span>, <span class="op">-</span><span class="dv">5</span>, <span class="dv">4</span>]</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>test3 <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>]</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>test4 <span class="ot">=</span> [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>, <span class="op">-</span><span class="dv">5</span>]</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test  <span class="co">-- (7,  2, 6)</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test2 <span class="co">-- (6,  3, 6)</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test3 <span class="co">-- (15, 0, 4)</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span> <span class="op">$</span> maxSubarray test4 <span class="co">-- (15, 0, 4)</span></span></code></pre></div>]]></summary>
+</entry>
+<entry>
+    <title>Improved Type-Level FizzBuzz</title>
+    <link href="https://mchaver.com/posts/2018-12-28-improved-type-level-fizzbuzz.html" />
+    <id>https://mchaver.com/posts/2018-12-28-improved-type-level-fizzbuzz.html</id>
+    <published>2018-12-28T00:00:00Z</published>
+    <updated>2018-12-28T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>This is a slight improvment of the code in my previous post <a href="/posts/2018-12-16-type-level-fizzbuzz.html">A Preliminary Attempt at Type-Level FizzBuzz</a>. The credit goes to my friend <a href="https://shulhi.com/">Shulhi Sapli</a>. He took a look at my code and came up with a cleaner solution. This part should be straightforward if you were able to folow the code from the previous post.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE DataKinds #-}</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE PolyKinds #-}</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeOperators #-}</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeFamilies #-}</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE TypeInType #-}</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE UndecidableInstances #-}</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Kind</span> (<span class="dt">Type</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Proxy</span> (<span class="dt">Proxy</span>(..))</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">GHC.TypeLits</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">IsZero</span> (<span class="ot">a ::</span> <span class="dt">Nat</span>)<span class="ot"> ::</span> <span class="dt">Bool</span> <span class="kw">where</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IsZero</span> <span class="dv">0</span> <span class="ot">=</span> <span class="dt">&#39;True</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IsZero</span> _ <span class="ot">=</span> <span class="dt">&#39;False</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">ModRemainderIsZero</span> (<span class="ot">a ::</span> <span class="dt">Nat</span>) (<span class="ot">b ::</span> <span class="dt">Nat</span>) <span class="kw">where</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ModRemainderIsZero</span> a b <span class="ot">=</span> <span class="dt">IsZero</span> (<span class="dt">Mod</span> a b)</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">FizzBuzz&#39;</span> (<span class="ot">a ::</span> <span class="dt">Bool</span>) (<span class="ot">b ::</span> <span class="dt">Bool</span>) c <span class="kw">where</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz&#39;</span> <span class="dt">&#39;True</span> <span class="dt">&#39;True</span> _ <span class="ot">=</span> <span class="st">&quot;FizzBuzz&quot;</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz&#39;</span> _     <span class="dt">&#39;True</span> _ <span class="ot">=</span> <span class="st">&quot;Fizz&quot;</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz&#39;</span> <span class="dt">&#39;True</span> _     _ <span class="ot">=</span> <span class="st">&quot;Buzz&quot;</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="dt">FizzBuzz&#39;</span> _     _     c <span class="ot">=</span> <span class="dt">NatToSym</span> c</span></code></pre></div>
+<p><code>ConcatSymbols</code> is a type-level function to concat each <code>Symbol</code> with a line break in between each value. That way we can transform a list of <code>Nat</code> with <code>NatToSym</code> and <code>ConcatSymbols</code> into a single <code>Symbol</code>, turn it into a <code>String</code> and print it.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">ConcatSymbols</span> xs <span class="kw">where</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ConcatSymbols</span> &#39;[] <span class="ot">=</span> <span class="st">&quot;&quot;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">ConcatSymbols</span> (x &#39;<span class="op">:</span> xs) <span class="ot">=</span> <span class="dt">AppendSymbol</span> x (<span class="dt">AppendSymbol</span> <span class="st">&quot;\n&quot;</span> (<span class="dt">ConcatSymbols</span> xs))</span></code></pre></div>
+<p>The nicest part is he found a solution to type-level function mapping. He got the idea from (Thinking with Types Type-Level Programming in Haskell)[http://thinkingwithtypes.com/] in chapter 10. This type-level technique is called <a href="https://en.wikipedia.org/wiki/Defunctionalization">defunctionalization</a>, which allows for higher order type-level functions in Haskell.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Exp</span> a <span class="ot">=</span> a <span class="ot">-&gt;</span> <span class="dt">Type</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">Eval</span> (<span class="ot">e ::</span> <span class="dt">Exp</span> a)<span class="ot"> ::</span> a</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">MapList</span><span class="ot"> ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Exp</span> b) <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Exp</span> [b]</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Eval</span> (<span class="dt">MapList</span> f &#39;[]) <span class="ot">=</span> &#39;[]</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Eval</span> (<span class="dt">MapList</span> f (a &#39;<span class="op">:</span> as)) <span class="ot">=</span> <span class="dt">Eval</span> (f a) &#39;<span class="op">:</span> <span class="dt">Eval</span> (<span class="dt">MapList</span> f as)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">FizzBuzz</span><span class="ot"> ::</span> <span class="dt">Nat</span> <span class="ot">-&gt;</span> <span class="dt">Exp</span> <span class="dt">Symbol</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">instance</span> <span class="dt">Eval</span> (<span class="dt">FizzBuzz</span> n) <span class="ot">=</span> <span class="dt">FizzBuzz&#39;</span> (<span class="dt">ModRemainderIsZero</span> n <span class="dv">3</span>) (<span class="dt">ModRemainderIsZero</span> n <span class="dv">5</span>) n</span></code></pre></div>
+<p>Now we just need a list of <code>Nat</code>s and we can map <code>FizzBuzz</code> and <code>ConcatSymbols</code> to get a <code>Symbol</code>. Much cleaner than the previous version.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Nums</span> <span class="ot">=</span> &#39;[<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>,<span class="dv">6</span>,<span class="dv">7</span>,<span class="dv">8</span>,<span class="dv">9</span>,<span class="dv">10</span>,<span class="dv">11</span>,<span class="dv">12</span>,<span class="dv">13</span>,<span class="dv">14</span>,<span class="dv">15</span>]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Result</span> <span class="ot">=</span> <span class="dt">ConcatSymbols</span> (<span class="dt">Eval</span> (<span class="dt">MapList</span> <span class="dt">FizzBuzz</span> <span class="dt">Nums</span>))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">putStr</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Result</span>)</span></code></pre></div>
+<p>One thing I have not been able to do is create a working <code>Range</code> type-level function that takes two <code>Nat</code> and returns all the numbers between them in a list. The following compiles.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">IfThenElse</span> cond a b <span class="kw">where</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IfThenElse</span> <span class="dt">&#39;True</span>  a _ <span class="ot">=</span> a</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">IfThenElse</span> <span class="dt">&#39;False</span> _ b <span class="ot">=</span> b</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">Append</span> xs y <span class="kw">where</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Append</span> &#39;[] y <span class="ot">=</span> &#39;[y]</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Append</span> (x &#39;<span class="op">:</span> xs) y <span class="ot">=</span> x &#39;<span class="op">:</span> (<span class="dt">Append</span> xs y)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">OrderToBool</span> x <span class="kw">where</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">OrderToBool</span> <span class="dt">&#39;EQ</span> <span class="ot">=</span> <span class="dt">&#39;True</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">OrderToBool</span> _   <span class="ot">=</span> <span class="dt">&#39;False</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="kw">family</span> <span class="dt">Range</span> (<span class="ot">x ::</span> <span class="dt">Nat</span>) (<span class="ot">y ::</span> <span class="dt">Nat</span>) (<span class="ot">zs ::</span> [<span class="dt">Nat</span>])<span class="ot"> ::</span> [<span class="dt">Nat</span>] <span class="kw">where</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Range</span> x y zs <span class="ot">=</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">IfThenElse</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">OrderToBool</span> (<span class="dt">CmpNat</span> x y))</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>      zs</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">Range</span> (x <span class="op">+</span> <span class="dv">1</span>) y (<span class="dt">Append</span> zs x))</span></code></pre></div>
+<p>I want to compile and run the following, but it seems to get caught an infinite loop. The compiler suggest using the GHC flag <code>-freduction-depth=0</code>, but it does not seem to help. Even for small values it gets stuck.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Result2</span> <span class="ot">=</span> <span class="dt">ConcatSymbols</span> (<span class="dt">Eval</span> (<span class="dt">MapList</span> <span class="dt">FizzBuzz</span> (<span class="dt">Range</span> <span class="dv">1</span> <span class="dv">3</span> &#39;[])))</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="fu">putStr</span> <span class="op">$</span> symbolVal (<span class="dt">Proxy</span><span class="ot"> ::</span> <span class="dt">Proxy</span> <span class="dt">Result2</span>)</span></code></pre></div>]]></summary>
+</entry>
+<entry>
+    <title>Tries in Haskell</title>
+    <link href="https://mchaver.com/posts/2018-12-27-tries-in-haskell.html" />
+    <id>https://mchaver.com/posts/2018-12-27-tries-in-haskell.html</id>
+    <published>2018-12-27T00:00:00Z</published>
+    <updated>2018-12-27T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>A trie is a nice tree data structure for storing items we want to frequently look up. It can be used to build a simple autocomplete or spell checking system. It stores sequences with the same prefixes (beginning sequence) together to reduce space and can performs a look up that takes <code>O(m)</code> where <code>m</code> is the length of the string we search.</p>
+<p>Here is a simple trie dictionary to give you an idea of the structure (heat, heater, help, helper, hot, hotter, hottest). The <code>.</code> in the trie below shows where the words end. While we can see <code>he</code> in the structure, it does not have a <code>.</code> so it is not part of the dictionary, a lookup of <code>he</code> returns <code>False</code> and of <code>hot</code> returns <code>True</code>.</p>
+<pre><code>           h
+      /    | 
+     e     o
+/    |     |
+a    l     t.
+|    |     |
+t.   p.    t
+|    |     |
+e    e     e
+|    |     | \
+r.   r.    r. s
+              |
+              t.</code></pre>
+<h2 id="type-declaration">Type declaration</h2>
+<p>A trie is a recursive structure. At each level it has a <code>Bool</code> representing a potential sequence boundary and stores a <code>Map</code> of <code>Trie</code>s. The sequence boundaries have the <code>Bool</code> set to <code>True</code> and the leaf nodes have <code>True</code> and an empty map.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Map.Lazy</span> <span class="kw">as</span> <span class="dt">Map</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Maybe</span> (fromMaybe)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Trie</span> a <span class="ot">=</span> <span class="dt">Trie</span> <span class="dt">Bool</span> (<span class="dt">Map.Map</span> a (<span class="dt">Trie</span> a)) <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Read</span>, <span class="dt">Show</span>)</span></code></pre></div>
+<p>An empty trie is simple.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">empty ::</span> <span class="dt">Trie</span> a</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>empty <span class="ot">=</span> <span class="dt">Trie</span> <span class="dt">False</span> Map.empty</span></code></pre></div>
+<h2 id="the-insert-function">The insert function</h2>
+<p>To insert and update values into a trie, we will use <a href="https://hackage.haskell.org/package/containers-0.6.0.1/docs/Data-Map-Lazy.html#v:alter">Map.alter</a> <code>Ord k =&gt; (Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a</code>. Given a function <code>f</code> it will <code>insert</code>, <code>update</code> or <code>delete</code> a value <code>a</code> at key <code>k</code>. If the function returns <code>Just</code> it will <code>insert</code> (if <code>k</code> does not exist) or <code>update</code> it, if it returns <code>Nothing</code> than it will delete the value at <code>k</code> if it exists.</p>
+<p>When the sequence is finished, we set the last node to <code>True</code> so that it knows there is a boundary when it looks up a sequence. While iterating throught the values of the sequence, it keeps the same <code>Bool</code> value, and recursively updates the child nodes at <code>x</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">insert ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Trie</span> a</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>insert []     (<span class="dt">Trie</span> _ nodes)     <span class="ot">=</span> <span class="dt">Trie</span> <span class="dt">True</span> nodes</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>insert (x<span class="op">:</span>xs) (<span class="dt">Trie</span> end nodes) <span class="ot">=</span> <span class="dt">Trie</span> end (Map.alter (<span class="dt">Just</span> <span class="op">.</span> insert xs <span class="op">.</span> fromMaybe empty) x nodes)</span></code></pre></div>
+<p>Now we can build a simple dictionary with <code>insert</code> and a helper function.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">mkTrie ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [[a]] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>mkTrie as <span class="ot">=</span> mkTrie&#39; as empty</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    mkTrie&#39; []     trie <span class="ot">=</span> trie</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    mkTrie&#39; (x<span class="op">:</span>xs) trie <span class="ot">=</span> mkTrie&#39; xs <span class="op">$</span> insert x trie</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>dictionary <span class="ot">=</span> mkTrie [<span class="st">&quot;bad&quot;</span>, <span class="st">&quot;good&quot;</span>, <span class="st">&quot;heat&quot;</span>, <span class="st">&quot;heater&quot;</span>, <span class="st">&quot;help&quot;</span>, <span class="st">&quot;helper&quot;</span>, <span class="st">&quot;hot&quot;</span>, <span class="st">&quot;hotter&quot;</span>, <span class="st">&quot;hottest&quot;</span>, <span class="st">&quot;p&quot;</span>, <span class="st">&quot;pi&quot;</span>, <span class="st">&quot;sad&quot;</span>, <span class="st">&quot;said&quot;</span>]</span></code></pre></div>
+<h2 id="the-member-function">The member function</h2>
+<p>We should check that we can find these words in the dictionary.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">member ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>member []     (<span class="dt">Trie</span> end _) <span class="ot">=</span> end</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>member (x<span class="op">:</span>xs) (<span class="dt">Trie</span> _ nodes) <span class="ot">=</span> fromMaybe <span class="dt">False</span> (member xs <span class="op">&lt;$&gt;</span> Map.lookup x nodes)</span></code></pre></div>
+<p>These return <code>True</code>:</p>
+<pre><code>λ&gt; member &quot;heat&quot; dictionary
+λ&gt; member &quot;hot&quot; dictionary
+λ&gt; member &quot;helper&quot; dictionary</code></pre>
+<p>And these return <code>False</code>:</p>
+<pre><code>λ&gt; member &quot;he&quot; dictionary
+λ&gt; member &quot;hello&quot; dictionary
+λ&gt; member &quot;goodbye&quot; dictionary</code></pre>
+<h2 id="the-delete-function">The delete function</h2>
+<p>This function gave me the most trouble because you need to keep track of which sequences are shared. For example, “help” and “helper” both share “help”. When we delete “helper”, we still need to keep “help”. We need to consider the following patterns when deleting:</p>
+<h4 id="forked">forked</h4>
+<pre><code>  m
+  |
+  e
+ / \
+ t. e
+    |
+    t.</code></pre>
+<h4 id="in-line">in-line</h4>
+<pre><code>  h
+  |
+  e
+  |
+  a
+  |
+  t.
+  |
+  e
+  |
+  r.</code></pre>
+<h4 id="separate-paths">separate paths</h4>
+<pre><code>  g  b
+  |  |
+  o  a
+  |  |
+  o  d.
+  |
+  d.</code></pre>
+<p>The main idea is to start from the top of the trie and follow the sequence all the way down, if certain conditions are met, then we can delete the sequence, if not, we continue through the subsequences checking if we can delete anything. In case we want to delete a boundary that is not at a leaf, we the list is empty, we check if there are any children, if there are we set it to <code>False</code>. It took a bit of trial, error and unit testing to write these functions so I will not claim that they are correct yet.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="ot">lengthOfChildNodes ::</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Int</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>lengthOfChildNodes (<span class="dt">Trie</span> _ nodes) <span class="ot">=</span> Map.size nodes</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="ot">deletable ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>deletable []       (<span class="dt">Trie</span> _ nodes) <span class="ot">=</span> Map.null nodes</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>deletable (x <span class="op">:</span> xs) (<span class="dt">Trie</span> end nodes) <span class="ot">=</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  (<span class="fu">length</span> xs <span class="op">==</span> <span class="dv">0</span> <span class="op">||</span> <span class="fu">not</span> end) <span class="op">&amp;&amp;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">maybe</span> <span class="dt">False</span> (\t <span class="ot">-&gt;</span> deletable xs t <span class="op">&amp;&amp;</span> (<span class="fu">length</span> xs <span class="op">==</span> <span class="dv">0</span> <span class="op">||</span> (lengthOfChildNodes t) <span class="op">&lt;</span> <span class="dv">1</span>)) (Map.lookup x nodes)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="ot">delete ::</span> <span class="dt">Ord</span> a <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Trie</span> a <span class="ot">-&gt;</span> <span class="dt">Trie</span> a</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>delete as t <span class="ot">=</span> <span class="kw">if</span> member as t <span class="kw">then</span> delete&#39; as t <span class="kw">else</span> t</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    delete&#39; as<span class="op">@</span>(x <span class="op">:</span> xs) t<span class="op">@</span>(<span class="dt">Trie</span> end nodes) <span class="ot">=</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>      <span class="kw">if</span> deletable as t</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">then</span> <span class="dt">Trie</span> end (Map.delete x nodes)</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">else</span> <span class="dt">Trie</span> end (Map.alter (<span class="dt">Just</span> <span class="op">.</span> delete&#39; xs <span class="op">.</span> fromMaybe empty) x nodes)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    delete&#39; [] t<span class="op">@</span>(<span class="dt">Trie</span> end nodes) <span class="ot">=</span> <span class="kw">if</span> Map.size nodes <span class="op">&gt;</span> <span class="dv">0</span> <span class="kw">then</span> <span class="dt">Trie</span> <span class="dt">False</span> nodes <span class="kw">else</span> t</span></code></pre></div>
+<p>The <code>delete</code> function is slow because it repeatedly traces over the same path as it gets smaller until it is deleted. If you need to perform delete a lot on a trie, one idea is to keep track of what paths are deletable with and extra boolean flag on each level. You would need to update the <code>insert</code> function to support this.</p>
+<h2 id="testing">Testing</h2>
+<p>Here are the tests I used to develop the functions.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> hspec <span class="op">$</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  describe <span class="st">&quot;delete&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;forked&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> delete <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> delete <span class="st">&quot;hottest&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;hotter&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;inline&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;help&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;helper&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;helper&quot;</span> <span class="op">$</span> delete <span class="st">&quot;help&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> delete <span class="st">&quot;said&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;said&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;p&quot;</span>      <span class="op">$</span> delete <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> delete <span class="st">&quot;p&quot;</span>      <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;help&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;help&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;helper&quot;</span> <span class="op">$</span> delete <span class="st">&quot;helper&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;heat&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;heat&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> delete <span class="st">&quot;sad&quot;</span>    <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;said&quot;</span>   <span class="op">$</span> delete <span class="st">&quot;said&quot;</span>   <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;p&quot;</span>      <span class="op">$</span> delete <span class="st">&quot;p&quot;</span>      <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> delete <span class="st">&quot;pi&quot;</span>     <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>    it <span class="st">&quot;separate paths&quot;</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;good&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;good&quot;</span> <span class="op">$</span> delete <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">True</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> delete <span class="st">&quot;bad&quot;</span>  <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>      (member <span class="st">&quot;good&quot;</span> <span class="op">$</span> delete <span class="st">&quot;good&quot;</span> <span class="op">$</span> dictionary) <span class="ot">`shouldBe`</span> <span class="dt">False</span></span></code></pre></div>]]></summary>
+</entry>
+<entry>
+    <title>Binary Search Tree in Haskell</title>
+    <link href="https://mchaver.com/posts/2018-12-24-binary-search-tree-in-haskell.html" />
+    <id>https://mchaver.com/posts/2018-12-24-binary-search-tree-in-haskell.html</id>
+    <published>2018-12-24T00:00:00Z</published>
+    <updated>2018-12-24T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<h2 id="type-declaration">Type declaration</h2>
+<p>Binary trees are a common data structure in the study of algorithms and useful for getting comfortable with new programming languages. To limit the scope of this post, we will only define a binary tree for <code>Int</code> instead of one that accepts a type parameter because to do it right would require using the <code>GADTs</code> extensions to enable the <code>Ord</code> and <code>Eq</code> restrictions on a the type parameter.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.List</span> (group, sort)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Tree</span> <span class="ot">=</span> <span class="dt">Nil</span> <span class="op">|</span> <span class="dt">Node</span> <span class="dt">Tree</span> <span class="dt">Int</span> <span class="dt">Tree</span> <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</span></code></pre></div>
+<p>This is a simple recursive data structure in Haskell. Each <code>Node</code> constructor takes a left-side <code>Tree</code>, a node value, and a right-side <code>Tree</code>, <code>Nil</code> ends the recursion. A simple single <code>Node</code> tree with a value of <code>1</code> is defined as <code>Node Nil 1 Nil</code>. A three node tree is <code>Node (Noe Nil 2 Nil) 1 (Node Nil 3 Nil)</code>. This tree looks like this:</p>
+<pre><code>  1
+ / \
+2   3</code></pre>
+<h2 id="traversal-functions">Traversal functions</h2>
+<p>What would it look like to map a function over each <code>Int</code> value for our binary tree?</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ot">treeMap ::</span> (<span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Int</span>) <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>treeMap _ <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>treeMap f (<span class="dt">Node</span> l v r) <span class="ot">=</span> (<span class="dt">Node</span> (treeMap f l) (f v) (treeMap f r))</span></code></pre></div>
+<p>If it is <code>Nil</code>, you just return <code>Nil</code> and if it is a <code>Node</code>, apply the function <code>f</code> to the value, and then call the map function on the left and right children of the <code>Node</code>. If you change <code>Int</code> to <code>a</code> then you can easily turn this into the <code>Functor</code> definition for the binary tree; change the type signature of <code>f</code> to <code>(a -&gt; a)</code>.</p>
+<p>The various depth first traversal functions, pre-order (NLR), in-order (LNR) and post-order (LRN), are defined similarly to the map funcion above.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ot">depthFirstPreOrder ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>depthFirstPreOrder <span class="dt">Nil</span> <span class="ot">=</span> []</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>depthFirstPreOrder (<span class="dt">Node</span> l v r) <span class="ot">=</span> [v] <span class="op">++</span> (depthFirstPreOrder l) <span class="op">++</span> (depthFirstPreOrder l)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ot">depthFirstInOrder ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>depthFirstInOrder (<span class="dt">Nil</span>) <span class="ot">=</span> []</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>depthFirstInOrder (<span class="dt">Node</span> l v r) <span class="ot">=</span> (depthFirstInOrder l) <span class="op">++</span> [v] <span class="op">++</span> (depthFirstInOrder r)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="ot">depthFirstPostOrder ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>depthFirstPostOrder (<span class="dt">Nil</span>) <span class="ot">=</span> []</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>depthFirstPostOrder (<span class="dt">Node</span> l v r) <span class="ot">=</span> (depthFirstPostOrder l) <span class="op">++</span> (depthFirstPostOrder r) <span class="op">++</span> [v]</span></code></pre></div>
+<p>Breadth first traversal is more complex. The strategy is to build a queue and traverse it at the same time. When the <code>Node</code> is <code>Nil</code>, it continues to traverse, when the <code>Node</code> has a value, it adds the value to results list, and add the left and right children of the current node to the end of the queue. When the queue is empty, the results are returned, then it converts <code>Node</code>s to <code>Just x</code>, <code>Nil</code> to <code>Nothing</code>, then uses <code>catMaybes</code> to turn it into <code>[Int]</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">breadthFirst ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> [<span class="dt">Int</span>]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>breadthFirst tree <span class="ot">=</span> catMaybes <span class="op">$</span> nodeVal <span class="op">&lt;$&gt;</span> breadthFirst&#39; [tree] [tree]</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ot">    breadthFirst&#39; ::</span> [<span class="dt">Tree</span>] <span class="ot">-&gt;</span> [<span class="dt">Tree</span>] <span class="ot">-&gt;</span> [<span class="dt">Tree</span>]</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    breadthFirst&#39; (<span class="dt">Nil</span> <span class="op">:</span> queue) orderedNodes <span class="ot">=</span> breadthFirst&#39; queue orderedNodes</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    breadthFirst&#39; (<span class="dt">Node</span> l _ r <span class="op">:</span> queue) orderedNodes <span class="ot">=</span> breadthFirst&#39; (queue <span class="op">++</span> [l,r]) (orderedNodes <span class="op">++</span> [l,r])</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    breadthFirst&#39; _ orderedNodes <span class="ot">=</span> orderedNodes</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="ot">    nodeVal ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    nodeVal <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    nodeVal (<span class="dt">Node</span> _ x _) <span class="ot">=</span> <span class="dt">Just</span> x</span></code></pre></div>
+<h2 id="balanced-binary-search-tree">Balanced Binary Search Tree</h2>
+<p>If we want to use the binary tree as a binary search tree, each value must be a unique key, and the keys in each node are greater than or equal to the keys its left subtree and less than or equal to the keys in its right subtree. We start with a simple insert function that traverses the tree the same way a search does, but it may imbalance the tree (the height difference between one or more branches is greater than one).</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">insert ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>insert <span class="dt">Nil</span> insertVal <span class="ot">=</span> <span class="dt">Node</span> <span class="dt">Nil</span> insertVal <span class="dt">Nil</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>insert (<span class="dt">Node</span> l currentNodeVal r) insertVal</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> insertVal <span class="op">==</span> currentNodeVal <span class="ot">=</span> <span class="dt">Node</span> l currentNodeVal r</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> insertVal  <span class="op">&lt;</span> currentNodeVal <span class="ot">=</span> <span class="dt">Node</span> (insert l insertVal) currentNodeVal r</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="fu">otherwise</span>                   <span class="ot">=</span> <span class="dt">Node</span> l currentNodeVal (insert r insertVal)</span></code></pre></div>
+<p>To make a balanced binary search tree, our strategy is to transform a list of values into a list of unique values that is sorted such that <code>insert</code> can be folded over it to create a binary search tree with values in the correct order to make it balanced. Given a list, repeteadly take the middle value, in case of even length the middle plus one, move it to the front, and repeat the process on the remaining values to the left and right of the middle value.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ot">mkBalancedBinarySearchTreeList ::</span> (<span class="dt">Ord</span> a) <span class="ot">=&gt;</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>mkBalancedBinarySearchTreeList <span class="ot">=</span> mkBalancedBinarySearchTreeList&#39; <span class="op">.</span> sortAndRmdups</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    sortAndRmdups <span class="ot">=</span> <span class="fu">map</span> <span class="fu">head</span> <span class="op">.</span> <span class="fu">group</span> <span class="op">.</span> <span class="fu">sort</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="ot">    mkBalancedBinarySearchTreeList&#39; ::</span> [a] <span class="ot">-&gt;</span> [a]</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    mkBalancedBinarySearchTreeList&#39; [] <span class="ot">=</span> []</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    mkBalancedBinarySearchTreeList&#39; xs <span class="ot">=</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> <span class="fu">length</span> xs <span class="op">&gt;</span> <span class="dv">2</span> <span class="kw">of</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="dt">True</span> <span class="ot">-&gt;</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>          <span class="kw">let</span> mid <span class="ot">=</span> (<span class="fu">quot</span> (<span class="fu">length</span> xs) <span class="dv">2</span>)</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>              (left, right) <span class="ot">=</span> <span class="fu">splitAt</span> mid xs</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>              (rightL, rightR) <span class="ot">=</span> <span class="fu">splitAt</span> <span class="dv">1</span> right</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>          <span class="kw">in</span> rightL <span class="op">++</span> mkBalancedBinarySearchTreeList&#39; left <span class="op">++</span> mkBalancedBinarySearchTreeList&#39; rightR</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="dt">False</span> <span class="ot">-&gt;</span> xs</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="ot">mkTree ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>mkTree xs <span class="ot">=</span> <span class="fu">foldl</span> insert <span class="dt">Nil</span> xs</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="ot">mkBinaryBalancedSearchTree ::</span> [<span class="dt">Int</span>] <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>mkBinaryBalancedSearchTree <span class="ot">=</span> mkTree <span class="op">.</span> mkBalancedBinarySearchTreeList</span></code></pre></div>
+<p>Now to see if a binary search tree contains a value, traverse across the tree comparing the value, if it reaches a <code>Node</code> that has a matching value, then it is <code>True</code>, if it reaches a <code>Nil</code> node, then it does not exist in the tree.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ot">contains ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Bool</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>contains <span class="dt">Nil</span> _ <span class="ot">=</span> <span class="dt">False</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>contains (<span class="dt">Node</span> t1 v t2) x </span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">==</span> v    <span class="ot">=</span> <span class="dt">True</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x  <span class="op">&lt;</span> v    <span class="ot">=</span> contains t1 x </span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">=</span> contains t2 x</span></code></pre></div>
+<p><code>delete</code> is the most complicated function so far. If you delete a node that has only one child, you only need to move the child up to the position of the node deleted. However, if you delete a node that has two children we need to move the minimal value of its right subtree up to the deleted node, the leftmost value, and then get that subtree without its leftmost value.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ot">leftMost ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>leftMost <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>leftMost (<span class="dt">Node</span> <span class="dt">Nil</span> v _) <span class="ot">=</span> <span class="dt">Just</span> v</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>leftMost (<span class="dt">Node</span> left v _) <span class="ot">=</span> leftMost left</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ot">rightMost ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>rightMost <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>rightMost (<span class="dt">Node</span> _ v <span class="dt">Nil</span>) <span class="ot">=</span> <span class="dt">Just</span> v</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>rightMost (<span class="dt">Node</span> _ v r) <span class="ot">=</span> rightMost r</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="ot">delete ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>delete <span class="dt">Nil</span> _ <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>delete (<span class="dt">Node</span> l v r) x</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">==</span> v   <span class="ot">=</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> (<span class="fu">succ</span> l r) <span class="kw">of</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> succ&#39; <span class="ot">-&gt;</span> <span class="dt">Node</span> (left l r) succ&#39; (right l r)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> <span class="dt">Nil</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">&lt;</span>  v   <span class="ot">=</span> <span class="dt">Node</span> (delete l x) v r</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  <span class="op">|</span> x <span class="op">&gt;</span>  v   <span class="ot">=</span> <span class="dt">Node</span>  l v (delete r x)</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="ot">    succ ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Maybe</span> <span class="dt">Int</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">succ</span> l <span class="dt">Nil</span> <span class="ot">=</span> rightMost l</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">succ</span> _ r   <span class="ot">=</span> leftMost r</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="ot">    left ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>    left l <span class="dt">Nil</span> <span class="ot">=</span> leftSubtree l</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    left l _   <span class="ot">=</span> l</span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="ot">    right ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    right l <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>    right _ r   <span class="ot">=</span> rightSubtree r</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- return the right subtree without the leftmost item</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a><span class="ot">    rightSubtree ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>    rightSubtree <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>    rightSubtree (<span class="dt">Node</span> <span class="dt">Nil</span> _ r) <span class="ot">=</span> r</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>    rightSubtree (<span class="dt">Node</span> l v r) <span class="ot">=</span> <span class="dt">Node</span> (rightSubtree l) v r</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>    <span class="co">-- return the left subtree without the rightmost item</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a><span class="ot">    leftSubtree ::</span> <span class="dt">Tree</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>    leftSubtree <span class="dt">Nil</span> <span class="ot">=</span> <span class="dt">Nil</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>    leftSubtree (<span class="dt">Node</span> l _ <span class="dt">Nil</span>) <span class="ot">=</span> l</span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>    leftSubtree (<span class="dt">Node</span> l v r) <span class="ot">=</span> <span class="dt">Node</span> l v <span class="op">$</span> leftSubtree r</span></code></pre></div>
+<p>If you would like to learn more about binary trees in Haskell. I suggest trying to solve the binary tree problems in <a href="https://wiki.haskell.org/H-99:_Ninety-Nine_Haskell_Problems">Ninety-Nine Haskell Problems</a>.</p>]]></summary>
+</entry>
+
+</feed>
