@@ -67,6 +67,10 @@ The most interesting function here is `closeAccount`. It takes an `Account` as a
 Now we will go over a few helper functions for money.
 
 \begin{code}
+amount :: Money %1 -> (Ur Amount, Money)
+amount (Money a) = case move a of
+  Ur x -> (Ur x, Money x)
+
 split :: Amount -> Money %1 -> Either Money (Money, Money)
 split n (Money a) = case move a of
   Ur x
@@ -78,6 +82,8 @@ merge (Money a) (Money b) = case move a of
   Ur x -> case move b of
     Ur y -> Money (x + y)
 \end{code}
+
+`amount` reads the amount of money without destroying it.
 
 `split` takes an amount of money such that it conserves the total amount of Money that was put in. If the request amount was too much, then it returns `Left` preserving the original amount. If it was less than or equal, it returns `Right` with the first value as the requested amount and the second value as the original amount minus the second amount.
 
@@ -118,9 +124,9 @@ main = do
   let a = openAccount 1 100
       b = openAccount 2 200 
       c = openAccount 3 300
-      (a1, b1, Ur transferResult1) = transfer 500 a b 
-      (b2, c2, Ur transferResult2) = transfer 150 b1 c
-      (a3, c3, Ur transferResult3) = transfer 10 a1 c2
+      (a1, b1, Ur _transferResult1) = transfer 500 a b 
+      (b2, c2, Ur _transferResult2) = transfer 150 b1 c
+      (a3, c3, Ur _transferResult3) = transfer 10 a1 c2
       (Ur a4Amount, a4) = balanceOf a3
       (Ur b4Amount, b4) = balanceOf b2
       (Ur c4Amount, c4) = balanceOf c3
@@ -129,9 +135,11 @@ main = do
   putStrLn ("Account B holds: " <> show b4Amount)
   putStrLn ("Account C holds: " <> show c4Amount)
   
-  closeAccount a4
-  closeAccount b4
-  closeAccount c4  
+  let _a = closeAccount a4
+      _b = closeAccount b4
+      _c = closeAccount c4
+
+  pure ()
 \end{code}
 
 Hopefully that gives you a basic idea of how to use Linear Types in Haskell. Here are some exercises I have designed if you want further practice.
