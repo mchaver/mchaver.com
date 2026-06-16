@@ -24,17 +24,13 @@
     <div id="header">
       <a href="/" id="main-link">mchaver</a>
       <span class="headerlinks">
-        <a href="/">blog</a>
-        <span> | </span>
-        <a href="/topics.html">topics</a>
+        <a href="/">articles</a>
         <span> | </span>
         <a href="/archive.html">archive</a>
         <span> | </span>
         <a href="/projects.html">projects</a>
         <span> | </span>
         <a href="/about.html">about</a>
-        <span> | </span>
-        <a href="/search.html">search</a>
       </span>
       <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
     </div>
@@ -67,11 +63,11 @@
           btn.textContent = icon(next);
         });
       })();
-      // Cmd/Ctrl-K jumps to search.
+      // Cmd/Ctrl-K jumps to the archive (which carries the search box).
       document.addEventListener('keydown', function (e) {
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
           e.preventDefault();
-          window.location.href = '/search.html';
+          window.location.href = '/archive.html';
         }
       });
     </script>

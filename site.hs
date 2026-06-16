@@ -11,9 +11,8 @@ import qualified Text.Blaze.Html5.Attributes as A
 import Control.Monad (forM, filterM)
 import Data.Aeson (Value, encode, object, (.=))
 import qualified Data.ByteString.Lazy as BL
-import Data.Char (toLower)
 import Data.Function (on)
-import Data.List (intersect, intersperse, sort, sortBy)
+import Data.List (intersect, sort, sortBy)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Ord (Down (..), comparing)
 import qualified Data.Text as T
@@ -104,48 +103,6 @@ seriesItemCtx =
     boolField "current" (snd . itemBody)
 
 --------------------------------------------------------------------------------
--- Archive helpers.
-
--- Render tags as plain comma-separated text links (class "meta-tag"), i.e.
--- without the boxed-pill styling of the normal tag field.
-plainTagRenderLink :: String -> Maybe FilePath -> Maybe H.Html
-plainTagRenderLink _   Nothing   = Nothing
-plainTagRenderLink tag (Just fp) =
-    Just $ H.a ! A.class_ "meta-tag" ! A.href (toValue (toUrl fp)) $ toHtml tag
-
-plainTags :: String -> Tags -> Context a
-plainTags key tags =
-    tagsFieldWith getTags plainTagRenderLink
-        (mconcat . intersperse (toHtml (", " :: String))) key tags
-
--- A post's effective "last updated" date: the `updated` field if present,
--- otherwise the original date parsed from its date-prefixed filename.
-lastUpdatedOf :: Item a -> Compiler String
-lastUpdatedOf item = do
-    let ident = itemIdentifier item
-        date  = take 10 (takeFileName (toFilePath ident))
-    fromMaybe date <$> getMetadataField ident "updated"
-
--- Order posts by last-updated, most recent first.
-byLastUpdated :: [Item a] -> Compiler [Item a]
-byLastUpdated items = do
-    keyed <- forM items $ \i -> do
-        d <- lastUpdatedOf i
-        pure (d, i)
-    pure (map snd (sortBy (comparing (Down . fst)) keyed))
-
--- Context for an archive row: title/url/kind (from defaultContext), plus plain
--- tags, a normalized publication state (default "complete"), and last-updated.
-archivePostCtx :: Tags -> Context String
-archivePostCtx tags =
-    field "lastdate" lastUpdatedOf                                          `mappend`
-    field "state"
-        (\i -> fromMaybe "complete" <$> getMetadataField (itemIdentifier i) "state")
-                                                                            `mappend`
-    plainTags "tags" tags                                                   `mappend`
-    defaultContext
-
---------------------------------------------------------------------------------
 -- Faceted homepage helpers.
 
 -- Keep only the loaded posts whose `kind` metadata matches.
@@ -169,6 +126,7 @@ searchDoc post = do
     route' <- getRoute ident
     title  <- fromMaybe "" <$> getMetadataField ident "title"
     kind   <- fromMaybe "" <$> getMetadataField ident "kind"
+    state  <- fromMaybe "complete" <$> getMetadataField ident "state"
     tags'  <- getTags ident
     let url  = maybe "#" toUrl route'
         body = take 5000 (stripTags (itemBody post))
@@ -176,20 +134,11 @@ searchDoc post = do
         [ "title" .= title
         , "url"   .= url
         , "kind"  .= kind
+        , "state" .= state
         , "date"  .= date
         , "tags"  .= tags'
         , "text"  .= body
         ]
-
---------------------------------------------------------------------------------
--- Topics page: one section per tag, each listing its posts (newest first).
-topicCtx :: Tags -> Context (String, [Identifier])
-topicCtx tags =
-    field "topic"    (pure . fst . itemBody)                                  `mappend`
-    field "count"    (pure . show . length . snd . itemBody)                  `mappend`
-    field "topicUrl" (\i -> maybe "#" toUrl <$> getRoute (tagsMakeId tags (fst (itemBody i)))) `mappend`
-    listFieldWith "posts" linkedPostCtx
-        (\i -> mapM makeItem (sortBy (comparing Down) (snd (itemBody i))))
 
 --------------------------------------------------------------------------------
 -- | Pandoc writer template: prepend an auto-generated table of contents (only
@@ -269,20 +218,6 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
     
-    create ["topics.html"] $ do
-        route idRoute
-        compile $ do
-            let topics = sortBy (comparing (map toLower . fst)) (tagsMap tags)
-                topicsCtx =
-                    listField "topics" (topicCtx tags) (mapM makeItem topics) `mappend`
-                    constField "title" "Topics"                               `mappend`
-                    defaultContext
-
-            makeItem ""
-                >>= loadAndApplyTemplate "templates/topics.html"  topicsCtx
-                >>= loadAndApplyTemplate "templates/default.html" topicsCtx
-                >>= relativizeUrls
-
     match "posts/*" $ do
         route $ setExtension "html"
         let postCtx' = postCtxWithTags tags `mappend` relatedField `mappend` seriesField
@@ -297,18 +232,15 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" postCtx'
                 >>= relativizeUrls
 
+    -- Archive is rendered client-side from search.json (search + topic/kind
+    -- filters + date sort), so it just needs the page chrome here.
     create ["archive.html"] $ do
         route idRoute
         compile $ do
-            posts <- byLastUpdated =<< loadAll "posts/*"
-            let archiveCtx =
-                    listField "posts" (archivePostCtx tags) (return posts) `mappend`
-                    constField "title" "Archive"             `mappend`
-                    defaultContext
-
+            let ctx = constField "title" "Archive" `mappend` defaultContext
             makeItem ""
-                >>= loadAndApplyTemplate "templates/archive.html" archiveCtx
-                >>= loadAndApplyTemplate "templates/default.html" archiveCtx
+                >>= loadAndApplyTemplate "templates/archive.html" ctx
+                >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
 
 
@@ -342,15 +274,6 @@ main = hakyll $ do
             posts <- recentFirst =<< loadAllSnapshots "posts/*" "content"
             docs  <- mapM searchDoc posts
             makeItem (BL.toStrict (encode docs))
-
-    create ["search.html"] $ do
-        route idRoute
-        compile $ do
-            let ctx = constField "title" "Search" `mappend` defaultContext
-            makeItem ""
-                >>= loadAndApplyTemplate "templates/search.html"  ctx
-                >>= loadAndApplyTemplate "templates/default.html" ctx
-                >>= relativizeUrls
 
     create ["rss.xml"] $ do
         route idRoute
