@@ -10,12 +10,16 @@ import qualified Text.Blaze.Html5.Attributes as A
 
 import Control.Monad (forM, filterM)
 import Data.Aeson (Value, encode, object, (.=))
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
+import Data.Char (isAlphaNum, isAscii, toUpper)
 import Data.Function (on)
 import Data.List (intersect, sort, sortBy)
 import Data.Maybe (catMaybes, fromMaybe)
 import Data.Ord (Down (..), comparing)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
+import Numeric (showHex)
 import System.FilePath (takeFileName)
 
 import Text.Pandoc.Options (WriterOptions (..))
@@ -27,10 +31,28 @@ postCtxWithTags tags = tt "tags" tags `mappend` postCtx
 
 tt = tagsFieldWith getTags simpleTagRenderLink (mconcat)
 
+-- Tags link into the archive with their topic filter pre-applied (the archive's
+-- JS reads ?topic=…). The route argument is ignored: there are no per-tag pages.
 simpleTagRenderLink :: String -> (Maybe FilePath) -> Maybe H.Html
-simpleTagRenderLink _   Nothing         = Nothing
-simpleTagRenderLink tag (Just filePath) =
-  Just $ H.a ! A.class_ "tag" ! A.href (toValue $ toUrl filePath) $ toHtml tag
+simpleTagRenderLink tag _ =
+  Just $ H.a ! A.class_ "tag" ! A.href (toValue (archiveTopicUrl tag)) $ toHtml tag
+
+-- A link to the archive filtered to one topic, e.g. "/archive.html?topic=monad%20transformer".
+archiveTopicUrl :: String -> String
+archiveTopicUrl tag = "/archive.html?topic=" ++ urlEncodeQuery tag
+
+-- Percent-encode a string for use as a URL query value (UTF-8 bytes; unreserved
+-- chars pass through). The archive's URLSearchParams reads it back decoded.
+urlEncodeQuery :: String -> String
+urlEncodeQuery = concatMap enc . B.unpack . TE.encodeUtf8 . T.pack
+  where
+    enc w
+      | unreserved c = [c]
+      | otherwise    = '%' : pad (map toUpper (showHex w ""))
+      where c = toEnum (fromIntegral w)
+    unreserved c = (isAscii c && isAlphaNum c) || c `elem` ("-_.~" :: String)
+    pad [d] = ['0', d]
+    pad ds  = ds
 
 tagsFieldWith' :: (Identifier -> Compiler [String])
               -- ^ Get the tags
@@ -204,20 +226,10 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" ctx
                 >>= relativizeUrls
 
-    tagsRules tags $ \tag pattern -> do
-        let title = "Posts tagged \"" ++ tag ++ "\""
-        route idRoute
-        compile $ do
-            posts <- recentFirst =<< loadAll pattern
-            let ctx = constField "title" title
-                      `mappend` listField "posts" postCtx (return posts)
-                      `mappend` defaultContext
+    -- No per-tag pages: tag links route to /archive.html?topic=… (see
+    -- simpleTagRenderLink). The `tags` structure is still used to render the
+    -- tag pills and to compute related posts.
 
-            makeItem ""
-                >>= loadAndApplyTemplate "templates/tag.html" ctx
-                >>= loadAndApplyTemplate "templates/default.html" ctx
-                >>= relativizeUrls
-    
     match "posts/*" $ do
         route $ setExtension "html"
         let postCtx' = postCtxWithTags tags `mappend` relatedField `mappend` seriesField

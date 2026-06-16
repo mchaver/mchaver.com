@@ -80,7 +80,13 @@
       hits.forEach(function (p) {
         var li = document.createElement('li');
         li.className = 'post archive-row';
-        var tags = (p.tags || []).map(esc).join(', ');
+        // Each tag is a link to the same archive filtered to that topic; the
+        // delegated handler below applies it in-place without a full reload.
+        var tags = (p.tags || []).map(function (t) {
+          return '<a class="meta-tag" href="/archive.html?topic=' +
+                 esc(encodeURIComponent(t)) + '" data-topic="' + esc(t) + '">' +
+                 esc(t) + '</a>';
+        }).join(', ');
         li.innerHTML =
           '<a class="post-link archive-title" href="' + esc(p.url) + '">' +
             esc(p.title) + '</a>' +
@@ -96,13 +102,45 @@
       });
     }
 
-    q.addEventListener('input', render);
-    topic.addEventListener('change', render);
-    kind.addEventListener('change', render);
-    sort.addEventListener('change', render);
+    // Reflect the current filter state in the address bar so the view is shareable.
+    function syncURL() {
+      var p = new URLSearchParams();
+      if (q.value.trim()) p.set('q', q.value.trim());
+      if (topic.value)    p.set('topic', topic.value);
+      if (kind.value)     p.set('kind', kind.value);
+      if (sort.value === 'asc') p.set('sort', 'asc');
+      var qs = p.toString();
+      history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+    }
+
+    function update() { render(); syncURL(); }
+
+    q.addEventListener('input', update);
+    topic.addEventListener('change', update);
+    kind.addEventListener('change', update);
+    sort.addEventListener('change', update);
+
+    // Clicking a tag inside a result row filters to that topic in-place.
+    out.addEventListener('click', function (e) {
+      var a = e.target.closest('.meta-tag');
+      if (!a) return;
+      e.preventDefault();
+      topic.value = a.getAttribute('data-topic');
+      update();
+      window.scrollTo(0, 0);
+    });
+
+    // Apply any filters passed in the URL (e.g. from a tag link elsewhere).
+    function applyParams() {
+      var p = new URLSearchParams(location.search);
+      if (p.has('q'))     q.value = p.get('q');
+      if (p.has('topic')) topic.value = p.get('topic');
+      if (p.has('kind'))  kind.value = p.get('kind');
+      if (p.get('sort') === 'asc') sort.value = 'asc';
+    }
 
     fetch('/search.json')
       .then(function (r) { return r.json(); })
-      .then(function (d) { idx = d; fillTopics(); render(); });
+      .then(function (d) { idx = d; fillTopics(); applyParams(); render(); });
   })();
 </script>
