@@ -1,5 +1,5 @@
 ---
-title:
+title: Linear Types in Haskell
 kind: tutorial
 state: complete
 tags: haskell, linear-types

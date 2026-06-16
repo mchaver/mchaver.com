@@ -1,15 +1,146 @@
-<p>All posts, most recently updated first.</p>
+<p>Every post, newest first. Search, or filter by topic and kind.</p>
 
-<ol class="posts archive">
-  $for(posts)$
-  <li class="archive-row">
-    <a class="post-link archive-title" href="$url$">$title$</a>
-    <div class="archive-meta">
-      $if(kind)$<span class="meta-type type-$kind$">$kind$</span>$endif$
-      <span class="meta-state state-$state$">$state$</span>
-      $if(tags)$<span class="meta-tags">$tags$</span>$endif$
-      <span class="meta-date">$lastdate$</span>
-    </div>
-  </li>
-  $endfor$
-</ol>
+<div class="archive-controls">
+  <input id="q" class="search-input" type="search"
+         placeholder="Search posts…" autofocus aria-label="Search posts">
+  <select id="f-topic" class="archive-filter" aria-label="Filter by topic">
+    <option value="">all topics</option>
+  </select>
+  <select id="f-kind" class="archive-filter" aria-label="Filter by kind">
+    <option value="">all kinds</option>
+    <option value="tutorial">tutorial</option>
+    <option value="reference">reference</option>
+    <option value="note">note</option>
+  </select>
+  <select id="f-sort" class="archive-filter" aria-label="Sort order">
+    <option value="desc">newest first</option>
+    <option value="asc">oldest first</option>
+  </select>
+</div>
+
+<ul id="results" class="posts archive search-results"></ul>
+
+<script>
+  (function () {
+    var idx   = [],
+        q     = document.getElementById('q'),
+        topic = document.getElementById('f-topic'),
+        kind  = document.getElementById('f-kind'),
+        sort  = document.getElementById('f-sort'),
+        out   = document.getElementById('results');
+
+    function esc(s) {
+      return (s || '').replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+
+    // Populate the topic dropdown with the alphabetical union of all tags.
+    function fillTopics() {
+      var set = {};
+      idx.forEach(function (p) {
+        (p.tags || []).forEach(function (t) { set[t] = true; });
+      });
+      Object.keys(set).sort(function (a, b) {
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+      }).forEach(function (t) {
+        var o = document.createElement('option');
+        o.value = t;
+        o.textContent = t;
+        topic.appendChild(o);
+      });
+    }
+
+    function render() {
+      var term     = q.value.trim().toLowerCase(),
+          words    = term ? term.split(/\s+/) : [],
+          wantTag  = topic.value,
+          wantKind = kind.value,
+          asc      = sort.value === 'asc';
+
+      var hits = idx.filter(function (p) {
+        if (wantKind && p.kind !== wantKind) return false;
+        if (wantTag && (p.tags || []).indexOf(wantTag) < 0) return false;
+        if (words.length) {
+          var hay = (p.title + ' ' + (p.tags || []).join(' ') + ' ' +
+                     p.kind + ' ' + p.text).toLowerCase();
+          if (!words.every(function (w) { return hay.indexOf(w) >= 0; })) return false;
+        }
+        return true;
+      });
+
+      // idx arrives newest-first; reverse a copy for oldest-first.
+      if (asc) hits = hits.slice().reverse();
+
+      out.innerHTML = '';
+      if (!hits.length) {
+        out.innerHTML = '<li class="search-none">No matches.</li>';
+        return;
+      }
+      hits.forEach(function (p) {
+        var li = document.createElement('li');
+        li.className = 'post archive-row';
+        // Each tag is a link to the same archive filtered to that topic; the
+        // delegated handler below applies it in-place without a full reload.
+        var tags = (p.tags || []).map(function (t) {
+          return '<a class="meta-tag" href="/archive.html?topic=' +
+                 esc(encodeURIComponent(t)) + '" data-topic="' + esc(t) + '">' +
+                 esc(t) + '</a>';
+        }).join(', ');
+        li.innerHTML =
+          '<a class="post-link archive-title" href="' + esc(p.url) + '">' +
+            esc(p.title) + '</a>' +
+          '<div class="archive-meta">' +
+            (p.kind ? '<span class="meta-type type-' + esc(p.kind) + '">' +
+                      esc(p.kind) + '</span>' : '') +
+            (p.state ? '<span class="meta-state state-' + esc(p.state) + '">' +
+                       esc(p.state) + '</span>' : '') +
+            (tags ? '<span class="meta-tags">' + tags + '</span>' : '') +
+            '<span class="meta-date">' + esc(p.date) + '</span>' +
+          '</div>';
+        out.appendChild(li);
+      });
+    }
+
+    // Reflect the current filter state in the address bar so the view is shareable.
+    function syncURL() {
+      var p = new URLSearchParams();
+      if (q.value.trim()) p.set('q', q.value.trim());
+      if (topic.value)    p.set('topic', topic.value);
+      if (kind.value)     p.set('kind', kind.value);
+      if (sort.value === 'asc') p.set('sort', 'asc');
+      var qs = p.toString();
+      history.replaceState(null, '', qs ? '?' + qs : location.pathname);
+    }
+
+    function update() { render(); syncURL(); }
+
+    q.addEventListener('input', update);
+    topic.addEventListener('change', update);
+    kind.addEventListener('change', update);
+    sort.addEventListener('change', update);
+
+    // Clicking a tag inside a result row filters to that topic in-place.
+    out.addEventListener('click', function (e) {
+      var a = e.target.closest('.meta-tag');
+      if (!a) return;
+      e.preventDefault();
+      topic.value = a.getAttribute('data-topic');
+      update();
+      window.scrollTo(0, 0);
+    });
+
+    // Apply any filters passed in the URL (e.g. from a tag link elsewhere).
+    function applyParams() {
+      var p = new URLSearchParams(location.search);
+      if (p.has('q'))     q.value = p.get('q');
+      if (p.has('topic')) topic.value = p.get('topic');
+      if (p.has('kind'))  kind.value = p.get('kind');
+      if (p.get('sort') === 'asc') sort.value = 'asc';
+    }
+
+    fetch('/search.json')
+      .then(function (r) { return r.json(); })
+      .then(function (d) { idx = d; fillTopics(); applyParams(); render(); });
+  })();
+</script>
