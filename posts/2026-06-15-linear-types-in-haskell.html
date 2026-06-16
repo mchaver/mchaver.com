@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>
+      // Set the theme before first paint to avoid a flash of the wrong colors.
+      (function () {
+        var stored = localStorage.getItem('theme');
+        var prefersDark = window.matchMedia &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute(
+          'data-theme', stored || (prefersDark ? 'dark' : 'light'));
+      })();
+    </script>
+    <title>mchaver - Linear Types in Haskell</title>
+    <link rel="stylesheet" href="../css/default.css" />
+    <link rel="stylesheet" href="../css/syntax.css" />
+    <link rel="alternate" type="application/rss+xml" title="mchaver.com (RSS)" href="../rss.xml" />
+    <link rel="alternate" type="application/atom+xml" title="mchaver.com (Atom)" href="../atom.xml" />
+  </head>
+  <body>
+    <div id="header">
+      <a href="../" id="main-link">mchaver</a>
+      <span class="headerlinks">
+        <a href="../">articles</a>
+        <span> | </span>
+        <a href="../archive.html">archive</a>
+        <span> | </span>
+        <a href="../projects.html">projects</a>
+        <span> | </span>
+        <a href="../about.html">about</a>
+      </span>
+      <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
+    </div>
+
+    <div id="wrapper">
+      <section>
+        <article id="content">
+          <h1>Linear Types in Haskell</h1>
+          
+
+<div class="post-meta">
+  <div class="post-date-line">2026-06-15</div>
+  <div class="post-tags-line">
+    <a class="kind kind-tutorial" href="../archive.html?kind=tutorial">tutorial</a>
+    <a class="tag" href="../archive.html?topic=haskell">haskell</a><a class="tag" href="../archive.html?topic=linear-types">linear-types</a>
+  </div>
+</div>
+
+<p>I heard about Linear Types a long time. Maybe about ten years ago I
+explored a system called <a href="https://github.com/ucsd-progsys/liquidhaskell">Liquid Haskell</a>.
+It’s a Haskell compiler that adds refinement types (use predicate logic
+in the type system to further restrict the range of values that a type
+can hold). I had considered it for a production system, but at the time
+it felt like too much overhead. That started my exploration into type
+theory and related tools.</p>
+<p>Linear types say that a value must be used exactly one time in the
+body of a function. Support for linear types was added to <a href="https://discourse.haskell.org/t/glasgow-haskell-compiler-9-0-1-rc1-now-available/1706">GHC
+9.0 in 2020</a>. In GHC Haskell, we need to use the <a href="https://ghc.gitlab.haskell.org/ghc/doc/users_guide/exts/linear_types.html">LinearTypes
+language extension</a> and to make life easier, the <a href="https://hackage.haskell.org/package/linear-base-0.8.0#readme">linear-base
+library</a>.</p>
+<p>In the type signature of a function, we append <code>%1</code> after
+the type, to tell the compiler we will only use the type once in the
+body of the function.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ot">f ::</span> a <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> b</span></code></pre></div>
+<p>Linear types makes us think about how values are used in a function.
+A perfect domain for linear types is money. Imagine there an authority
+that can create and destroy money (non-linear), then there are a set of
+accounts that can hold money that authority. The accounts can transfer
+money (linear, they can only use it once) but they cannot create or
+destroy it. Let’s get started.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- the language extension</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE LinearTypes #-}</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">-- import some tools from linear base</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Data.Unrestricted.Linear</span> (<span class="dt">Ur</span> (<span class="dt">Ur</span>), move)</span></code></pre></div>
+<p><code>Ur</code> is an unrestricted value. In the context of linear
+types, it lets us know that the value can be used as many times as we
+like. <code>move :: a %1 -&gt; Ur a</code> takes a linear value and
+makes it unrestricted. For me the main idea here, is that when we see
+<code>Ur</code> or <code>move</code>, we need to think carefully about
+what we are doing with value and make sure it does not violate the
+restrictions we have for the linear types within the system we
+define.</p>
+<p>Now we will define a few types.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">Amount</span> <span class="ot">=</span> <span class="dt">Integer</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">newtype</span> <span class="dt">Money</span> <span class="ot">=</span> <span class="dt">Money</span> <span class="dt">Amount</span> <span class="co">-- do not export the constructor</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">-- inject money into a system</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="ot">mint ::</span> <span class="dt">Amount</span> <span class="ot">-&gt;</span> <span class="dt">Money</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>mint <span class="ot">=</span> <span class="dt">Money</span></span></code></pre></div>
+<p>With <code>mint</code>, we have a way to create money. We also need a
+way to remove money from a system, so with <code>burn</code> we take the
+amount of money as a linear type, and return it as an
+<code>Ur Amount</code> so it acts like a record of how much was
+removed.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- remove money from a system</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ot">burn ::</span> <span class="dt">Money</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Ur</span> <span class="dt">Amount</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>burn (<span class="dt">Money</span> a) <span class="ot">=</span> move a</span></code></pre></div>
+<p>Now we create some accounts that can receive and transfer money.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> <span class="dt">AccountId</span> <span class="ot">=</span> <span class="dt">Integer</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">data</span> <span class="dt">Account</span> <span class="ot">=</span> <span class="dt">Account</span> <span class="dt">AccountId</span> <span class="dt">Money</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ot">openAccount ::</span> <span class="dt">AccountId</span> <span class="ot">-&gt;</span> <span class="dt">Amount</span> <span class="ot">-&gt;</span> <span class="dt">Account</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>openAccount i a <span class="ot">=</span> <span class="dt">Account</span> i (mint a)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="ot">closeAccount ::</span> <span class="dt">Account</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Ur</span> <span class="dt">Amount</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>closeAccount (<span class="dt">Account</span> i bal) <span class="ot">=</span> <span class="kw">case</span> move i <span class="kw">of</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Ur</span> _ <span class="ot">-&gt;</span> burn bal</span></code></pre></div>
+<p>The most interesting function here is <code>closeAccount</code>. It
+takes an <code>Account</code> as a linear type because when we close it,
+we expect it to be gone, so it cannot be used afterwards. The
+<code>Amount</code> returned is intended to be a record of the amount of
+money that was removed from the system.</p>
+<p>Now we will go over a few helper functions for money.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="ot">amount ::</span> <span class="dt">Money</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> (<span class="dt">Ur</span> <span class="dt">Amount</span>, <span class="dt">Money</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>amount (<span class="dt">Money</span> a) <span class="ot">=</span> <span class="kw">case</span> move a <span class="kw">of</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Ur</span> x <span class="ot">-&gt;</span> (<span class="dt">Ur</span> x, <span class="dt">Money</span> x)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ot">split ::</span> <span class="dt">Amount</span> <span class="ot">-&gt;</span> <span class="dt">Money</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">Money</span> (<span class="dt">Money</span>, <span class="dt">Money</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>split n (<span class="dt">Money</span> a) <span class="ot">=</span> <span class="kw">case</span> move a <span class="kw">of</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Ur</span> x</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> n <span class="op">&lt;=</span> x <span class="ot">-&gt;</span> <span class="dt">Right</span> (<span class="dt">Money</span> n, <span class="dt">Money</span> (x <span class="op">-</span> n))</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span> <span class="fu">otherwise</span> <span class="ot">-&gt;</span> <span class="dt">Left</span> (<span class="dt">Money</span> x)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="ot">merge ::</span> <span class="dt">Money</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Money</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Money</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>merge (<span class="dt">Money</span> a) (<span class="dt">Money</span> b) <span class="ot">=</span> <span class="kw">case</span> move a <span class="kw">of</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Ur</span> x <span class="ot">-&gt;</span> <span class="kw">case</span> move b <span class="kw">of</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Ur</span> y <span class="ot">-&gt;</span> <span class="dt">Money</span> (x <span class="op">+</span> y)</span></code></pre></div>
+<p><code>amount</code> reads the amount of money without destroying
+it.</p>
+<p><code>split</code> takes an amount of money such that it conserves
+the total amount of Money that was put in. If the request amount was too
+much, then it returns <code>Left</code> preserving the original amount.
+If it was less than or equal, it returns <code>Right</code> with the
+first value as the requested amount and the second value as the original
+amount minus the second amount.</p>
+<p><code>merge</code> takes two money values and combines them.</p>
+<p>Now the last three <code>Account</code> functions before we make a
+test program.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ot">balanceOf ::</span> <span class="dt">Account</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> (<span class="dt">Ur</span> <span class="dt">Amount</span>, <span class="dt">Account</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>balanceOf (<span class="dt">Account</span> i bal) <span class="ot">=</span> <span class="kw">case</span> move i <span class="kw">of</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Ur</span> i' <span class="ot">-&gt;</span> <span class="kw">case</span> amount bal <span class="kw">of</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    (amt, bal') <span class="ot">-&gt;</span> (amt, <span class="dt">Account</span> i' bal')</span></code></pre></div>
+<p><code>balanceOf</code> takes an account, returns its amount for
+inspection and preserves the values in the account.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ot">deposit ::</span> <span class="dt">Money</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Account</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Account</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>deposit m (<span class="dt">Account</span> i bal) <span class="ot">=</span> <span class="kw">case</span> move i <span class="kw">of</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Ur</span> i' <span class="ot">-&gt;</span> <span class="dt">Account</span> i' (merge m bal)</span></code></pre></div>
+<p><code>deposit</code> increments the amount held in an account using
+the <code>merge</code> function.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ot">transfer ::</span> <span class="dt">Amount</span> <span class="ot">-&gt;</span> <span class="dt">Account</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> <span class="dt">Account</span> <span class="op">%</span><span class="dv">1</span> <span class="ot">-&gt;</span> (<span class="dt">Account</span>, <span class="dt">Account</span>, <span class="dt">Ur</span> <span class="dt">Bool</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>transfer n (<span class="dt">Account</span> si sbal) dst <span class="ot">=</span> <span class="kw">case</span> move si <span class="kw">of</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">Ur</span> si' <span class="ot">-&gt;</span> <span class="kw">case</span> split n sbal <span class="kw">of</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Left</span> whole <span class="ot">-&gt;</span> (<span class="dt">Account</span> si' whole, dst, <span class="dt">Ur</span> <span class="dt">False</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">Right</span> (moved, rest) <span class="ot">-&gt;</span> (<span class="dt">Account</span> si' rest, deposit moved dst, <span class="dt">Ur</span> <span class="dt">True</span>)</span></code></pre></div>
+<p><code>transfer</code> tries to move an amount of money from one
+account to another. It uses the <code>split</code> function. If it
+fails, then the accounts are unchanged. If it succeeds, then the first
+account is updated for the reduced amount and the second account
+receives a <code>deposit</code>. The <code>Bool</code> value tracks if
+<code>transfer</code> was succesful of not.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell literate"><code class="sourceCode haskell"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> a <span class="ot">=</span> openAccount <span class="dv">1</span> <span class="dv">100</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>      b <span class="ot">=</span> openAccount <span class="dv">2</span> <span class="dv">200</span> </span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      c <span class="ot">=</span> openAccount <span class="dv">3</span> <span class="dv">300</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>      (a1, b1, <span class="dt">Ur</span> _transferResult1) <span class="ot">=</span> transfer <span class="dv">500</span> a b </span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>      (b2, c2, <span class="dt">Ur</span> _transferResult2) <span class="ot">=</span> transfer <span class="dv">150</span> b1 c</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>      (a3, c3, <span class="dt">Ur</span> _transferResult3) <span class="ot">=</span> transfer <span class="dv">10</span> a1 c2</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">Ur</span> a4Amount, a4) <span class="ot">=</span> balanceOf a3</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">Ur</span> b4Amount, b4) <span class="ot">=</span> balanceOf b2</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>      (<span class="dt">Ur</span> c4Amount, c4) <span class="ot">=</span> balanceOf c3</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">putStrLn</span> (<span class="st">&quot;Account A holds: &quot;</span> <span class="op">&lt;&gt;</span> <span class="fu">show</span> a4Amount)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">putStrLn</span> (<span class="st">&quot;Account B holds: &quot;</span> <span class="op">&lt;&gt;</span> <span class="fu">show</span> b4Amount)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">putStrLn</span> (<span class="st">&quot;Account C holds: &quot;</span> <span class="op">&lt;&gt;</span> <span class="fu">show</span> c4Amount)</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> _a <span class="ot">=</span> closeAccount a4</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>      _b <span class="ot">=</span> closeAccount b4</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>      _c <span class="ot">=</span> closeAccount c4</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pure</span> ()</span></code></pre></div>
+<p>Hopefully that gives you a basic idea of how to use Linear Types in
+Haskell. Here are some exercises I have designed if you want further
+practice.</p>
+<ol type="1">
+<li><p>Make a Bank type that tracks the total amount of money in the
+accounts (sum of all the balances of the Accounts). The bank can create
+and destroy money.</p></li>
+<li><p>Create multiple banks that track the total amount of money in
+accounts associated with them. Track the total amount each bank has in
+their associated accounts and the total all banks have. Allow accounts
+to transfer between each other in the same bank. Create a wire function
+to allow transferring between accounts in different banks and the banks
+collect a fee.</p></li>
+<li><p>Create an Economy type and a Currency type. The economy type is
+responsible for creating and removing money from the system. Allow it to
+give and collect money from banks. Banks still maintain the same
+relation with accounts as described in number two. Each economy has
+their own currency. Banks and accounts can transfer or wire money within
+the same economy. They can also perform international transfers to
+different economies, but there is an exchange rate and they need to
+report foreign transfers to the corresponding economy.</p></li>
+</ol>
+
+
+
+<aside class="related">
+  <h2>Related posts</h2>
+  <ul>
+    
+      <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    
+      <li><a href="../posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    
+      <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
+    
+  </ul>
+</aside>
+
+
+        </article>
+      </section>
+
+      <div id="footer">
+        <a href="../rss.xml">RSS</a>
+        <span> | </span>
+        <a href="../atom.xml">Atom</a>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var btn = document.getElementById('theme-toggle');
+        if (!btn) return;
+        var root = document.documentElement;
+        var icon = function (t) { return t === 'dark' ? '☀︎' : '🌙'; };
+        btn.textContent = icon(root.getAttribute('data-theme'));
+        btn.addEventListener('click', function () {
+          var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          root.setAttribute('data-theme', next);
+          localStorage.setItem('theme', next);
+          btn.textContent = icon(next);
+        });
+      })();
+      // Cmd/Ctrl-K jumps to the archive (which carries the search box).
+      document.addEventListener('keydown', function (e) {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          window.location.href = '/archive.html';
+        }
+      });
+    </script>
+  </body>
+</html>

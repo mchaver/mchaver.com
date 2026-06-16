@@ -24,17 +24,13 @@
     <div id="header">
       <a href="./" id="main-link">mchaver</a>
       <span class="headerlinks">
-        <a href="./">blog</a>
-        <span> | </span>
-        <a href="./topics.html">topics</a>
+        <a href="./">articles</a>
         <span> | </span>
         <a href="./archive.html">archive</a>
         <span> | </span>
         <a href="./projects.html">projects</a>
         <span> | </span>
         <a href="./about.html">about</a>
-        <span> | </span>
-        <a href="./search.html">search</a>
       </span>
       <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
     </div>
@@ -44,7 +40,9 @@
         <article id="content">
           <h1>About</h1>
           <p>Hello! I’m mchaver.</p>
-<p>I develop websites, web applications, mobile applications and Natural Language Processing tools.</p>
+<p>I’m a professional software developer. As far as software development goes, I’m currently interested in algorithms, databases, graphics and game development, mobile and web applications, performance and type systems. I like the following programming languages: C, Clojure, Common Lisp, Forth, Haskell, ReScript, and Rust.</p>
+<p>Before getting involved in software, I started my academic career as a linguist. My areas of interest are Morphology, Phonotactics, Second Language Acquisition, Syntax, and the following language families: Athabaskan, Formosan, Indo-European, Japonic, Mayan and Sino-Tibetan. I also like Mathematics, but I am relatively new to most fields. I am actively learning in my free time.</p>
+<p>I like biking, hiking, skiing, swimming, etc. Anything that gets me outside and that I can do with friends and family.</p>
 <p>You can contact me at mchaver at gmail dot com.</p>
         </article>
       </section>
@@ -69,11 +67,11 @@
           btn.textContent = icon(next);
         });
       })();
-      // Cmd/Ctrl-K jumps to search.
+      // Cmd/Ctrl-K jumps to the archive (which carries the search box).
       document.addEventListener('keydown', function (e) {
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
           e.preventDefault();
-          window.location.href = '/search.html';
+          window.location.href = '/archive.html';
         }
       });
     </script>

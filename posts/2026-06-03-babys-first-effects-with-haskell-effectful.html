@@ -24,17 +24,13 @@
     <div id="header">
       <a href="../" id="main-link">mchaver</a>
       <span class="headerlinks">
-        <a href="../">blog</a>
-        <span> | </span>
-        <a href="../topics.html">topics</a>
+        <a href="../">articles</a>
         <span> | </span>
         <a href="../archive.html">archive</a>
         <span> | </span>
         <a href="../projects.html">projects</a>
         <span> | </span>
         <a href="../about.html">about</a>
-        <span> | </span>
-        <a href="../search.html">search</a>
       </span>
       <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
     </div>
@@ -48,8 +44,8 @@
 <div class="post-meta">
   <div class="post-date-line">2026-06-03</div>
   <div class="post-tags-line">
-    <a class="kind kind-tutorial" href="../kinds/tutorial.html">tutorial</a>
-    <a class="tag" href="../tags/haskell.html">haskell</a><a class="tag" href="../tags/effects.html">effects</a>
+    <a class="kind kind-tutorial" href="../archive.html?kind=tutorial">tutorial</a>
+    <a class="tag" href="../archive.html?topic=haskell">haskell</a><a class="tag" href="../archive.html?topic=effects">effects</a>
   </div>
 </div>
 
@@ -301,11 +297,11 @@ code <a href="https://github.com/mchaver/mchaver.com/tree/master/posts/2026-06-0
   <h2>Related posts</h2>
   <ul>
     
+      <li><a href="../posts/2026-06-15-linear-types-in-haskell.html">Linear Types in Haskell</a></li>
+    
       <li><a href="../posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
     
       <li><a href="../posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
-    
-      <li><a href="../posts/2018-12-31-change-making-problem-in-haskell.html">Change Making Problem in Haskell</a></li>
     
   </ul>
 </aside>
@@ -334,11 +330,11 @@ code <a href="https://github.com/mchaver/mchaver.com/tree/master/posts/2026-06-0
           btn.textContent = icon(next);
         });
       })();
-      // Cmd/Ctrl-K jumps to search.
+      // Cmd/Ctrl-K jumps to the archive (which carries the search box).
       document.addEventListener('keydown', function (e) {
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
           e.preventDefault();
-          window.location.href = '/search.html';
+          window.location.href = '/archive.html';
         }
       });
     </script>

@@ -24,17 +24,13 @@
     <div id="header">
       <a href="./" id="main-link">mchaver</a>
       <span class="headerlinks">
-        <a href="./">blog</a>
-        <span> | </span>
-        <a href="./topics.html">topics</a>
+        <a href="./">articles</a>
         <span> | </span>
         <a href="./archive.html">archive</a>
         <span> | </span>
         <a href="./projects.html">projects</a>
         <span> | </span>
         <a href="./about.html">about</a>
-        <span> | </span>
-        <a href="./search.html">search</a>
       </span>
       <button id="theme-toggle" type="button" aria-label="Toggle dark mode">🌙</button>
     </div>
@@ -43,18 +39,17 @@
       <section>
         <article id="content">
           <h1></h1>
-          <p>Notes, tutorials, and references on Haskell, types, and systems. Browse by
-topic, by kind, or <a href="./search.html">search</a>.</p>
+          <p>Recent articles that I have written and updated. Mostly about software development. You can see all articles and filter them in the <a href="./archive.html">archive</a>.</p>
 
 <section class="facet">
   <h2>Recent</h2>
   <ol class="posts">
-    <li class="post"><a class="post-link" href="./posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
+    <li class="post"><a class="post-link" href="./posts/2026-06-15-linear-types-in-haskell.html">Linear Types in Haskell</a></li>
+<li class="post"><a class="post-link" href="./posts/2026-06-07-moving-from-haskell-servant-to-rust-axum.html">Moving from Haskell Servant to Rust Axum</a></li>
 <li class="post"><a class="post-link" href="./posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
 <li class="post"><a class="post-link" href="./posts/2026-04-30-ccna-prep.html">Why I am preparing the CCNA exam</a></li>
 <li class="post"><a class="post-link" href="./posts/2026-04-16-writing-again.html">Writing Again</a></li>
 <li class="post"><a class="post-link" href="./posts/2019-01-01-monad-and-monad-transformer-templates.html">Monad and Monad Transformer Templates</a></li>
-<li class="post"><a class="post-link" href="./posts/2018-12-31-change-making-problem-in-haskell.html">Change Making Problem in Haskell</a></li>
 
   </ol>
 </section>
@@ -64,11 +59,11 @@ topic, by kind, or <a href="./search.html">search</a>.</p>
 <section class="facet">
   <h2><a href="./kinds/tutorial.html">Tutorials</a></h2>
   <ol class="posts">
-    <li class="post"><a class="post-link" href="./posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
+    <li class="post"><a class="post-link" href="./posts/2026-06-15-linear-types-in-haskell.html">Linear Types in Haskell</a></li>
+<li class="post"><a class="post-link" href="./posts/2026-06-03-babys-first-effects-with-haskell-effectful.html">Baby's First Effects with Haskell Effectful</a></li>
 <li class="post"><a class="post-link" href="./posts/2017-07-12-lens-tutorial-1.html">Lens Tutorial - SimpleLens</a></li>
 <li class="post"><a class="post-link" href="./posts/2017-07-05-linux-command-line-3.html">Linux Command Line - find, which, whereis, grep, awk, sed</a></li>
 <li class="post"><a class="post-link" href="./posts/2017-07-04-linux-command-line-2.html">Linux Command Line - Disk Usage and Disk Filesystem</a></li>
-<li class="post"><a class="post-link" href="./posts/2017-06-28-sqlite-simple.html">Simple SQLite queries with sqlite-simple</a></li>
 
   </ol>
 </section>
@@ -97,8 +92,7 @@ topic, by kind, or <a href="./search.html">search</a>.</p>
   </ol>
 </section>
 
-<p>Browse all <a href="./topics.html">topics</a> or the full
-<a href="./archive.html">archive</a>.</p>
+<p>Browse the full <a href="./archive.html">archive</a> to search or filter by topic.</p>
 
         </article>
       </section>
@@ -123,11 +117,11 @@ topic, by kind, or <a href="./search.html">search</a>.</p>
           btn.textContent = icon(next);
         });
       })();
-      // Cmd/Ctrl-K jumps to search.
+      // Cmd/Ctrl-K jumps to the archive (which carries the search box).
       document.addEventListener('keydown', function (e) {
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
           e.preventDefault();
-          window.location.href = '/search.html';
+          window.location.href = '/archive.html';
         }
       });
     </script>
